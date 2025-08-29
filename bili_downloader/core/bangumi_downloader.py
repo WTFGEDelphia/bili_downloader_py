@@ -2,12 +2,15 @@ import json
 import os
 import re
 from urllib.parse import urlparse
+from typing import Dict, Any, Tuple, List, Optional
 
 import requests
 
-from downloader_aria2 import DownloaderAria2
-from downloader_axel import DownloaderAxel
-from vamerger import VAMerger
+from bili_downloader.core.downloader_aria2 import DownloaderAria2
+from bili_downloader.core.downloader_axel import DownloaderAxel
+from bili_downloader.core.vamerger import VAMerger
+from bili_downloader.utils.logger import logger
+from bili_downloader.exceptions import APIError, DownloadError, MergeError
 
 # Default quality and format parameters
 DEFAULT_QN = 112
@@ -76,14 +79,20 @@ class BangumiDownloader:
     def check_result_code(self, result):
         """检查 API 返回的业务逻辑错误码。"""
         if result.get("code") != 0:
-            print(f"API Error: {result}")
+            logger.error("API Error", result=result)
             # Instead of sys.exit, raise an exception for better error handling
-            raise Exception(f"API returned error code {result.get('code')}")
+            raise APIError(f"API returned error code {result.get('code')}")
 
     def get_bangumi_info(self, media_id, headers=None):
         """根据 media_id 获取番剧基础信息。"""
         if headers is None:
             headers = {}
+            
+        # 确保必要的请求头存在
+        headers = headers.copy()
+        headers.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        headers.setdefault("Referer", "https://www.bilibili.com")
+        
         # Make a copy of the cookie dict to avoid modifying the original
         cookie_dict = (
             self.cookie.copy() if self.cookie and isinstance(self.cookie, dict) else {}
@@ -103,19 +112,25 @@ class BangumiDownloader:
             self.check_result_code(result)
             return result["result"]["media"]
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching bangumi info for media_id {media_id}: {e}")
-            raise
+            logger.error("Error fetching bangumi info for media_id", media_id=media_id, error=str(e))
+            raise DownloadError(f"Error fetching bangumi info for media_id {media_id}: {e}") from e
         except json.JSONDecodeError:
-            print(f"Error decoding JSON response for media_id {media_id}")
-            raise
+            logger.error("Error decoding JSON response for media_id", media_id=media_id)
+            raise DownloadError(f"Error decoding JSON response for media_id {media_id}")
         except KeyError:
-            print(f"Unexpected response structure for media_id {media_id}")
-            raise
+            logger.error("Unexpected response structure for media_id", media_id=media_id)
+            raise DownloadError(f"Unexpected response structure for media_id {media_id}")
 
     def get_detailed_bangumi_info_from_season_id(self, season_id, headers=None):
         """根据 season_id 获取番剧详细信息。"""
         if headers is None:
             headers = {}
+            
+        # 确保必要的请求头存在
+        headers = headers.copy()
+        headers.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        headers.setdefault("Referer", "https://www.bilibili.com")
+        
         # Make a copy of the cookie dict to avoid modifying the original
         cookie_dict = (
             self.cookie.copy() if self.cookie and isinstance(self.cookie, dict) else {}
@@ -135,21 +150,26 @@ class BangumiDownloader:
             self.check_result_code(result)
             return result["result"]
         except requests.exceptions.RequestException as e:
-            print(
-                f"Error fetching detailed bangumi info for season_id {season_id}: {e}"
-            )
-            raise
+            logger.error("Error fetching detailed bangumi info for season_id", season_id=season_id, error=str(e))
+            raise DownloadError(f"Error fetching detailed bangumi info for season_id {season_id}: {e}") from e
         except json.JSONDecodeError:
-            print(f"Error decoding JSON response for season_id {season_id}")
-            raise
+            logger.error("Error decoding JSON response for season_id", season_id=season_id)
+            raise DownloadError(f"Error decoding JSON response for season_id {season_id}")
         except KeyError:
-            print(f"Unexpected response structure for season_id {season_id}")
-            raise
+            logger.error("Unexpected response structure for season_id", season_id=season_id)
+            raise DownloadError(f"Unexpected response structure for season_id {season_id}")
 
     def get_detailed_bangumi_info_from_ep_id(self, ep_id, headers=None):
         """根据 ep_id 获取番剧详细信息。"""
         if headers is None:
             headers = {}
+        
+        # 确保必要的请求头存在
+        headers = headers.copy()
+        headers.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        headers.setdefault("Referer", "https://www.bilibili.com")
+        
+        logger.info(f"header is {headers}")
         params = {"ep_id": ep_id}
         try:
             response = requests.get(
@@ -163,16 +183,16 @@ class BangumiDownloader:
             self.check_result_code(result)
             return result["result"]
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching detailed bangumi info for ep_id {ep_id}: {e}")
-            raise
+            logger.error("Error fetching detailed bangumi info for ep_id", ep_id=ep_id, error=str(e))
+            raise DownloadError(f"Error fetching detailed bangumi info for ep_id {ep_id}: {e}") from e
         except json.JSONDecodeError:
-            print(f"Error decoding JSON response for ep_id {ep_id}")
-            raise
+            logger.error("Error decoding JSON response for ep_id", ep_id=ep_id)
+            raise DownloadError(f"Error decoding JSON response for ep_id {ep_id}")
         except KeyError:
-            print(f"Unexpected response structure for ep_id {ep_id}")
-            raise
+            logger.error("Unexpected response structure for ep_id", ep_id=ep_id)
+            raise DownloadError(f"Unexpected response structure for ep_id {ep_id}")
 
-    def get_numbers_in_str(self, string):
+    def get_numbers_in_str(self, string: str) -> str:
         """从字符串中提取数字。"""
         # Using regex is more robust and efficient
         match = re.search(r"\d+", string)
@@ -196,7 +216,7 @@ class BangumiDownloader:
             media_id = self.get_numbers_in_str(path)
             if not media_id:
                 raise ValueError("Could not extract media ID from the URL.")
-            print(f"media_id = {media_id}")
+            logger.info("Extracted media_id", media_id=media_id)
             season_id = self.get_bangumi_info(media_id, headers)["season_id"]
             return self.get_detailed_bangumi_info_from_season_id(season_id, headers)
         else:
@@ -204,7 +224,7 @@ class BangumiDownloader:
             ep_id = self.get_numbers_in_str(path)
             if not ep_id:
                 raise ValueError("Could not extract episode ID from the URL.")
-            print(f"ep_id = {ep_id}")
+            logger.info("Extracted ep_id", ep_id=ep_id)
             return self.get_detailed_bangumi_info_from_ep_id(ep_id, headers)
 
     def get_bangumi_download_info(self, aid, cid, qn=DEFAULT_QN, headers=None):
@@ -233,14 +253,20 @@ class BangumiDownloader:
             # print(f"\n\nresult: {result}\n\n")
             return result["result"]
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching download info for aid={aid}, cid={cid}: {e}")
-            raise
+            logger.error("Error fetching download info", aid=aid, cid=cid, error=str(e))
+            raise DownloadError(
+                f"Error fetching download info for aid={aid}, cid={cid}: {e}"
+            ) from e
         except json.JSONDecodeError:
-            print(f"Error decoding JSON response for aid={aid}, cid={cid}")
-            raise
+            logger.error("Error decoding JSON response", aid=aid, cid=cid)
+            raise DownloadError(
+                f"Error decoding JSON response for aid={aid}, cid={cid}"
+            )
         except KeyError:
-            print(f"Unexpected response structure for aid={aid}, cid={cid}")
-            raise
+            logger.error("Unexpected response structure", aid=aid, cid=cid)
+            raise DownloadError(
+                f"Unexpected response structure for aid={aid}, cid={cid}"
+            )
 
     def sanitize_filename(self, filename):
         """清理文件名，确保在文件系统中有效。"""
@@ -281,14 +307,13 @@ class BangumiDownloader:
 
             # 检查是否找到
             if qn_quality_format:
-                print(f"找到对应格式: {qn_quality_format}")
+                logger.info("找到对应格式", format=qn_quality_format)
                 selected_format = qn_quality_format
             else:
-                print(f"未找到对应格式: {qn}, 选择支持的最优清晰度格式")
+                logger.warning("未找到对应格式，选择支持的最优清晰度格式", qn=qn)
                 max_quality_format = max(support_formats, key=lambda x: x["quality"])
                 selected_format = max_quality_format
 
-            # print(f"最优清晰度格式 selected_format: {selected_format}")
             quality = selected_format["quality"]
             first_codecs = (
                 selected_format["codecs"][0]
@@ -296,8 +321,7 @@ class BangumiDownloader:
                 else None
             )
 
-            print(f"最优清晰度格式: {quality}")
-            print(f"最优清晰度格式 first_codec: {first_codecs}")
+            logger.info("最优清晰度格式", quality=quality, first_codec=first_codecs)
 
             audios = downinfo["audio"]
             videos = downinfo["video"]
@@ -319,8 +343,10 @@ class BangumiDownloader:
             # Return lists of URLs
             return (selected_format, video, audio)
         except (KeyError, IndexError) as e:
-            print(f"Error parsing download URLs for aid={aid}, cid={cid}: {e}")
-            raise
+            logger.error("Error parsing download URLs", aid=aid, cid=cid, error=str(e))
+            raise DownloadError(
+                f"Error parsing download URLs for aid={aid}, cid={cid}: {e}"
+            ) from e
 
     def download_bangumi(
         self,
@@ -347,7 +373,7 @@ class BangumiDownloader:
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(dest), exist_ok=True)
 
-        print("\nheader: {}".format(headers))
+        logger.info("Downloading file", url=url, dest=dest, referer=referer_value)
 
         # Select downloader based on type
         if downloader_type.lower() == "aria2":
@@ -356,8 +382,8 @@ class BangumiDownloader:
             downloader = DownloaderAxel(url, num, dest, header=headers)
 
         if not downloader.run():
-            print(f"\x1b[031mDownload failed: {url} -> {dest}\x1b[0m")
-            return False  # Indicate failure
+            logger.error("Download failed", url=url, dest=dest)
+            raise DownloadError(f"Download failed: {url} -> {dest}")
         return True  # Indicate success
 
     def download_all_from_info_with_quality(
@@ -374,15 +400,15 @@ class BangumiDownloader:
             headers = {}
 
         if not info or "episodes" not in info:
-            print("Invalid info structure provided for download.")
+            logger.error("Invalid info structure provided for download")
             return
 
         episodes = info["episodes"]
         if not episodes:
-            print("No episodes found to download.")
+            logger.warning("No episodes found to download")
             return
 
-        print(f"Found {len(episodes)} episodes to download.")
+        logger.info("Found episodes to download", count=len(episodes))
 
         audio_files = []
         video_files = []
@@ -416,12 +442,13 @@ class BangumiDownloader:
                 )
 
                 if video is None:
-                    print(f"视频信息不存在，跳过")
+                    logger.warning("视频信息不存在，跳过")
                     continue
 
                 aurl = audio["base_url"]
                 vurl = video["base_url"]
 
+                # 记录调试信息到文件
                 enumerate_path = os.path.join(destdir, "enumerate.txt")
                 with open(enumerate_path, "a", encoding="utf-8") as f:
                     f.write("# Bilibili Bangumi Downloader - enumerate \n\n")
@@ -433,14 +460,12 @@ class BangumiDownloader:
                     f.write(f"# vurl: {vurl}\n\n\n")
 
                 # 清晰度
-                # description = selected_format["description"]
                 new_description = format["new_description"]
                 display_desc = format["display_desc"]
                 quality = format["quality"]
                 video_format = format["format"]
 
                 # 使用从API返回的剧集标题作为文件名
-                # share_copy show_title long_title
                 episode_title = (
                     ep.get("share_copy", f"Episode_{i+1}")
                     + new_description
@@ -448,11 +473,11 @@ class BangumiDownloader:
                 )
                 episode_title_safe = self.sanitize_filename(episode_title)
 
-                print(
+                logger.info(
                     f"Downloading Episode {i+1}/{len(episodes)}: {episode_title_safe} (aid={aid}, cid={cid})"
                 )
 
-                print(f"\nbegin to download {episode_title_safe}")
+                logger.info(f"begin to download {episode_title_safe}")
 
                 # Define file paths using episode title
                 audio_dest = os.path.join(destdir, f"{episode_title_safe}.ogg")
@@ -468,15 +493,20 @@ class BangumiDownloader:
                     )
 
                 # Download audio
-                print("\n  Downloading audio...")
-                if not self.download_bangumi(
-                    aurl,
-                    audio_dest,
-                    headers=headers,
-                    refurl=refurl,
-                    downloader_type=downloader_type,
-                ):
-                    print(f"\n Failed to download audio for episode {i+1}. Skipping.")
+                logger.info("Downloading audio...")
+                try:
+                    self.download_bangumi(
+                        aurl,
+                        audio_dest,
+                        headers=headers,
+                        refurl=refurl,
+                        downloader_type=downloader_type,
+                    )
+                except DownloadError as e:
+                    logger.error(
+                        f"Failed to download audio for episode {i+1}. Skipping.",
+                        error=str(e),
+                    )
                     # Update download list status
                     with open(download_list_path, "r", encoding="utf-8") as f:
                         lines = f.readlines()
@@ -489,16 +519,19 @@ class BangumiDownloader:
                     continue  # Skip to next episode if audio fails
 
                 # Download video
-                print(f"\n  Downloading video...")
-                if not self.download_bangumi(
-                    vurl,
-                    video_dest,
-                    headers=headers,
-                    refurl=refurl,
-                    downloader_type=downloader_type,
-                ):
-                    print(
-                        f"\n  Failed to download video for episode {i+1}. Cleaning up audio and skipping."
+                logger.info(f"Downloading video...")
+                try:
+                    self.download_bangumi(
+                        vurl,
+                        video_dest,
+                        headers=headers,
+                        refurl=refurl,
+                        downloader_type=downloader_type,
+                    )
+                except DownloadError as e:
+                    logger.error(
+                        f"Failed to download video for episode {i+1}. Cleaning up audio and skipping.",
+                        error=str(e),
                     )
                     # Update download list status
                     with open(download_list_path, "r", encoding="utf-8") as f:
@@ -519,7 +552,7 @@ class BangumiDownloader:
                 video_files.append(video_dest)
 
             except Exception as e:
-                print(f"Error processing episode {i+1}: {e}")
+                logger.error(f"Error processing episode {i+1}", error=str(e))
                 # Optionally, clean up partial downloads here if needed
                 # But it's complex without knowing which files were created in this iteration
                 # We rely on the final cleanup loop for now.
@@ -527,16 +560,16 @@ class BangumiDownloader:
 
         # Merge downloaded files
         if audio_files and video_files:
-            print(f"\nMerging {len(audio_files)} episodes...")
+            logger.info(f"Merging {len(audio_files)} episodes...")
             for i, (apath, vpath) in enumerate(zip(audio_files, video_files)):
                 try:
                     # 从音频文件路径提取文件名（不含扩展名）作为合并后的文件名
                     base_name = os.path.splitext(os.path.basename(apath))[0]
                     opath = os.path.join(destdir, f"{base_name}.mkv")
 
-                    print(f"  Merging episode {i+1}: {base_name}...")
+                    logger.info(f"Merging episode {i+1}: {base_name}...")
                     if VAMerger(apath, vpath, opath).run():
-                        print(f"  Merged episode {i+1} successfully.")
+                        logger.info(f"Merged episode {i+1} successfully.")
                         merged_files.append(opath)
                         if doclean:
                             os.remove(apath)
@@ -561,7 +594,8 @@ class BangumiDownloader:
                                 else:
                                     f.write(line)
                     else:
-                        print(f"  Failed to merge episode {i+1}.")
+                        logger.error(f"Failed to merge episode {i+1}.")
+                        raise MergeError(f"Failed to merge episode {i+1}.")
 
                         # Update download list status
                         download_list_path = os.path.join(destdir, "download_list.txt")
@@ -577,9 +611,9 @@ class BangumiDownloader:
                                 else:
                                     f.write(line)
                 except Exception as e:
-                    print(f"Error merging episode {i+1}: {e}")
+                    logger.error(f"Error merging episode {i+1}", error=str(e))
         else:
-            print("No episodes were successfully downloaded to merge.")
+            logger.warning("No episodes were successfully downloaded to merge.")
 
         return merged_files
 

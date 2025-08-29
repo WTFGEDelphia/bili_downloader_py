@@ -2,35 +2,46 @@ import os
 import shutil
 import subprocess
 
+from bili_downloader.utils.logger import logger
+
 
 def find_executable(name):
     """在预定义路径或系统 PATH 中查找可执行文件。"""
-    # 1. Check in the same directory as this script
+    # 1. Check environment variable first (e.g., AXEL_PATH)
+    env_var_name = f"{name.upper()}_PATH"
+    env_path = os.environ.get(env_var_name)
+    if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
+        return env_path
+    
+    # 2. Check in the same directory as this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     exe_path = os.path.join(script_dir, name)
     if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
         return exe_path
 
-    # 2. Check with .exe extension (for Windows)
+    # 3. Check with .exe extension (for Windows)
     exe_path_exe = exe_path + ".exe"
     if os.path.isfile(exe_path_exe) and os.access(exe_path_exe, os.X_OK):
         return exe_path_exe
 
-    # 3. Fall back to checking system PATH
-    system_exe = shutil.which(name)
-    if system_exe:
-        return system_exe
+    # 4. Check in system PATH
+    system_path = shutil.which(name)
+    if system_path:
+        return system_path
+        
+    # 5. Check with .exe extension in system PATH (for Windows)
+    system_path_exe = shutil.which(f"{name}.exe")
+    if system_path_exe:
+        return system_path_exe
 
-    # 4. Not found
     return None
 
 
 # Find axel executable
 axel_path = find_executable("axel")
 if not axel_path:
-    raise FileNotFoundError(
-        "axel executable not found. Please ensure it is installed and in your PATH, or place it in the script directory."
-    )
+    axel_path = None
+    print("Warning: axel executable not found. axel downloader will not work.")
 
 
 class DownloaderAxel:
@@ -46,6 +57,11 @@ class DownloaderAxel:
         使用 axel 下载文件。
         返回 True 表示成功，False 表示失败。
         """
+        # 确保下载器可用
+        if axel_path is None:
+            logger.error("Axel executable not found. Cannot download file.")
+            return False
+            
         # Ensure destination directory exists
         os.makedirs(os.path.dirname(self.dest), exist_ok=True)
 
@@ -55,7 +71,7 @@ class DownloaderAxel:
             try:
                 os.remove(state_file)
             except Exception as e:
-                print(f"Warning: Could not remove state file {state_file}: {e}")
+                logger.warning(f"Could not remove state file {state_file}", error=str(e))
 
         # 构建 axel 命令参数列表
         cmd = [
@@ -86,7 +102,7 @@ class DownloaderAxel:
         # 使用 -U 参数设置 User-Agent
         if user_agent:
             if isinstance(user_agent, str):
-                escaped_user_agent = user_agent.replace('"', '\\"').replace("'", "\\'")
+                escaped_user_agent = user_agent.replace('"', '\\\"').replace("'", "\\'")
                 cmd.extend(["-U", escaped_user_agent])
             else:
                 cmd.extend(["-U", str(user_agent)])
@@ -94,7 +110,7 @@ class DownloaderAxel:
         # 使用 -H 参数设置 Referer 和其他头部
         if referer:
             if isinstance(referer, str):
-                escaped_referer = referer.replace('"', '\\"').replace("'", "\\'")
+                escaped_referer = referer.replace('"', '\\\"').replace("'", "\\'")
                 cmd.extend(["-H", f"Referer: {escaped_referer}"])
             else:
                 cmd.extend(["-H", f"Referer: {referer}"])
@@ -102,7 +118,7 @@ class DownloaderAxel:
         # 添加其他头部信息
         for key, value in other_headers.items():
             if isinstance(value, str):
-                escaped_value = value.replace('"', '\\"').replace("'", "\\'")
+                escaped_value = value.replace('"', '\\\"').replace("'", "\\'")
                 cmd.extend(["-H", f"{key}: {escaped_value}"])
             else:
                 cmd.extend(["-H", f"{key}: {value}"])
@@ -110,7 +126,7 @@ class DownloaderAxel:
         # Add URL
         cmd.append(self.url)
 
-        print(f"Executing download command: {' '.join(cmd)}")
+        logger.info("Executing download command", command=" ".join(cmd))
 
         for attempt in range(1, self.max_retry + 1):
             try:
@@ -127,27 +143,27 @@ class DownloaderAxel:
                 )
 
                 if result.returncode == 0:
-                    print(f"Download successful: {self.dest}")
+                    logger.info("Download successful", dest=self.dest)
                     return True
                 else:
-                    print(
-                        f"Attempt {attempt} failed for {self.url}. Return code: {result.returncode}"
+                    logger.warning(
+                        f"Attempt {attempt} failed for {self.url}. Return code: {result.returncode}",
+                        stderr=result.stderr,
                     )
-                    print(f"Stderr: {result.stderr}")
                     # Don't break yet, will retry if attempts left
 
             except subprocess.SubprocessError as e:
-                print(
-                    f"Attempt {attempt} failed for {self.url} with SubprocessError: {e}"
+                logger.error(
+                    f"Attempt {attempt} failed for {self.url} with SubprocessError", error=str(e)
                 )
             except Exception as e:
-                print(
-                    f"Attempt {attempt} failed for {self.url} with unexpected error: {e}"
+                logger.error(
+                    f"Attempt {attempt} failed for {self.url} with unexpected error", error=str(e)
                 )
 
             if attempt < self.max_retry:
-                print(f"Retrying... ({attempt}/{self.max_retry})")
+                logger.info(f"Retrying... ({attempt}/{self.max_retry})")
             else:
-                print(f"All {self.max_retry} attempts failed for {self.url}.")
-
+                logger.error(f"All {self.max_retry} attempts failed for {self.url}.")
+        
         return False

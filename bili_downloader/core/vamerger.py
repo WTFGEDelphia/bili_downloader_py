@@ -2,6 +2,8 @@ import os
 import shutil
 import subprocess
 
+from bili_downloader.utils.logger import logger
+
 
 def find_executable(name):
     """在预定义路径或系统 PATH 中查找可执行文件。"""
@@ -28,9 +30,8 @@ def find_executable(name):
 # Find ffmpeg executable
 ffmpeg_path = find_executable("ffmpeg")
 if not ffmpeg_path:
-    raise FileNotFoundError(
-        "ffmpeg executable not found. Please ensure it is installed and in your PATH, or place it in the script directory."
-    )
+    ffmpeg_path = None
+    print("Warning: ffmpeg executable not found. Video/audio merging will not work.")
 
 
 class VAMerger:
@@ -68,32 +69,31 @@ class VAMerger:
             self.output,
         ]
 
-        print(f"Executing merge command: {' '.join(cmd)}")
+        logger.info("Executing merge command", command=" ".join(cmd))
 
         try:
             # Use subprocess.run to execute the command
             # Capture stdout and stderr for logging
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 encoding="utf-8",
             )
 
             if result.returncode == 0:
-                print(f"Merge successful: {self.output}")
+                logger.info("Merge successful", output=self.output)
                 return True
             else:
-                print(
-                    f"Merge failed for {self.output}. Return code: {result.returncode}"
+                logger.error(
+                    f"Merge failed for {self.output}. Return code: {result.returncode}",
+                    stderr=result.stderr,
                 )
-                print(f"Stderr: {result.stderr}")
                 return False
 
         except subprocess.SubprocessError as e:
-            print(f"Merge failed for {self.output} with SubprocessError: {e}")
+            logger.error(f"Merge failed for {self.output} with SubprocessError", error=str(e))
             return False
         except Exception as e:
-            print(f"Merge failed for {self.output} with unexpected error: {e}")
+            logger.error(f"Merge failed for {self.output} with unexpected error", error=str(e))
             return False

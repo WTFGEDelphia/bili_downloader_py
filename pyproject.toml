@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "bili_downloader"
+version = "0.1.0"
+description = "哔哩哔哩番剧下载工具"
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.31.0"
+typer = { version = "^0.16.1", extras = ["all"] }
+rich = "^14.1.0"
+structlog = "^25.4.0"
+pydantic = { version = "^2.11.7", extras = ["dotenv"] }
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+isort = "^6.0.1"
+ruff = "^0.12.11"
+pytest = "^8.4.1"
+pytest-asyncio = "^1.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+bili-downloader = "bili_downloader.cli.main:app"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+select = [
+  "E",
+  "W",   # pycodestyle
+  "F",   # pyflakes
+  "I",   # isort
+  "C",   # mccabe
+  "B",   # bugbear
+  "UP",  # pyupgrade
+  "SIM", # simplify
+]
