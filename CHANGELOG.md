@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0] - 2025-09-01
+
+### Added
+
+- 添加Docker支持：创建Dockerfile和.dockerignore文件
+- 提供Docker使用说明和示例命令
+
 ## [0.2.4] - 2025-09-01
 
 ### Fixed

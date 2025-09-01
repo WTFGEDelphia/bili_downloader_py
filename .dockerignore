@@ -1,0 +1,43 @@
+# 忽略版本控制系统文件
+.git
+.gitignore
+
+# 忽略Python缓存和编译文件
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.coverage.*
+
+# 忽略测试相关文件
+.pytest_cache
+.pytest_cache/
+pytest_cache/
+.pytest_cache
+.coverage
+.coverage.*
+
+# 忽略虚拟环境
+venv/
+.env
+.venv/
+
+# 忽略日志文件
+*.log
+
+# 忽略开发相关文件
+.DS_Store
+Thumbs.db
+
+# 忽略IDE相关文件
+.vscode/
+.idea/
+
+# 忽略ruff缓存
+.ruff_cache/
+
+# 忽略Poetry锁文件（在容器中重新生成）
+poetry.lock

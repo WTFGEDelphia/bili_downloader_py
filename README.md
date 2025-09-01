@@ -53,6 +53,36 @@ pip install .
 bili-downloader download
 ```
 
+### 使用 Docker (推荐)
+
+```bash
+# 构建镜像
+docker build -t bili-downloader .
+
+# 运行交互式下载
+docker run -it --rm \
+  -v $(pwd)/downloads:/downloads \
+  -v $(pwd)/cookie.txt:/app/cookie.txt \
+  bili-downloader download
+
+# 或者直接下载特定剧集
+docker run -it --rm \
+  -v $(pwd)/downloads:/downloads \
+  -v $(pwd)/cookie.txt:/app/cookie.txt \
+  bili-downloader download \
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \
+  --directory "/downloads" \
+  --quality 112
+
+# 使用环境变量配置
+docker run -it --rm \
+  -v $(pwd)/downloads:/downloads \
+  -v $(pwd)/cookie.txt:/app/cookie.txt \
+  -e DOWNLOAD__DEFAULT_DOWNLOADER=aria2 \
+  -e DOWNLOAD__DEFAULT_QUALITY=80 \
+  bili-downloader download
+```
+
 ## 使用方法
 
 ### 1. 获取 Bilibili Cookie:
