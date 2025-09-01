@@ -12,7 +12,7 @@ def find_executable(name):
     env_path = os.environ.get(env_var_name)
     if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
         return env_path
-    
+
     # 2. Check in the same directory as this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     exe_path = os.path.join(script_dir, name)
@@ -28,7 +28,7 @@ def find_executable(name):
     system_path = shutil.which(name)
     if system_path:
         return system_path
-        
+
     # 5. Check with .exe extension in system PATH (for Windows)
     system_path_exe = shutil.which(f"{name}.exe")
     if system_path_exe:
@@ -61,7 +61,7 @@ class DownloaderAxel:
         if axel_path is None:
             logger.error("Axel executable not found. Cannot download file.")
             return False
-            
+
         # Ensure destination directory exists
         os.makedirs(os.path.dirname(self.dest), exist_ok=True)
 
@@ -71,21 +71,17 @@ class DownloaderAxel:
             try:
                 os.remove(state_file)
             except Exception as e:
-                logger.warning(f"Could not remove state file {state_file}", error=str(e))
+                logger.warning(
+                    f"Could not remove state file {state_file}", error=str(e)
+                )
 
         # 构建 axel 命令参数列表
         cmd = [
             axel_path,
-            "-k",  # 不检查证书（避免SSL问题）
-            "-c",  # Skip download if file already exists
-            "-p",  # Print simple percentages instead of progress bar (0-100)
             "-n",
             str(self.num),  # 最大连接数
             "-o",
             self.dest,  # 输出文件名
-            "--max-redirect=10",  # 最大重定向次数
-            "--timeout=30",  # 连接超时时间
-            "--retry=5",  # 重试次数
         ]
 
         # Add headers
@@ -105,24 +101,21 @@ class DownloaderAxel:
         # 使用 -U 参数设置 User-Agent
         if user_agent:
             if isinstance(user_agent, str):
-                escaped_user_agent = user_agent.replace('"', '\\\\\\"').replace("'", "\\\\'")
-                cmd.extend(["-U", escaped_user_agent])
+                cmd.extend(["-U", user_agent])
             else:
                 cmd.extend(["-U", str(user_agent)])
 
         # 使用 -H 参数设置 Referer 和其他头部
         if referer:
             if isinstance(referer, str):
-                escaped_referer = referer.replace('"', '\\\\\\"').replace("'", "\\\\'")
-                cmd.extend(["-H", f"Referer: {escaped_referer}"])
+                cmd.extend(["-H", f"Referer: {referer}"])
             else:
                 cmd.extend(["-H", f"Referer: {referer}"])
 
         # 添加其他头部信息
         for key, value in other_headers.items():
             if isinstance(value, str):
-                escaped_value = value.replace('"', '\\\\\\"').replace("'", "\\\\'")
-                cmd.extend(["-H", f"{key}: {escaped_value}"])
+                cmd.extend(["-H", f"{key}: {value}"])
             else:
                 cmd.extend(["-H", f"{key}: {value}"])
 
@@ -154,21 +147,21 @@ class DownloaderAxel:
                     # Don't break yet, will retry if attempts left
 
             except subprocess.TimeoutExpired:
-                logger.error(
-                    f"Attempt {attempt} timed out for {self.url}"
-                )
+                logger.error(f"Attempt {attempt} timed out for {self.url}")
             except subprocess.SubprocessError as e:
                 logger.error(
-                    f"Attempt {attempt} failed for {self.url} with SubprocessError", error=str(e)
+                    f"Attempt {attempt} failed for {self.url} with SubprocessError",
+                    error=str(e),
                 )
             except Exception as e:
                 logger.error(
-                    f"Attempt {attempt} failed for {self.url} with unexpected error", error=str(e)
+                    f"Attempt {attempt} failed for {self.url} with unexpected error",
+                    error=str(e),
                 )
 
             if attempt < self.max_retry:
                 logger.info(f"Retrying... ({attempt}/{self.max_retry})")
             else:
                 logger.error(f"All {self.max_retry} attempts failed for {self.url}.")
-        
+
         return False
