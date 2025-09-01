@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Bilibili番剧下载器服务
   bili-downloader:
@@ -19,7 +17,11 @@ services:
       - ./cookie.txt:/app/cookie.txt:ro
       # 配置目录挂载（用于持久化用户配置）
       - ./config:/home/bilibili/.config/bili-downloader
-    # 环境变量配置
+      # .env文件挂载（用于环境变量配置）
+      - ./.env:/app/.env:ro
+    # 环境变量配置（从.env文件读取）
+    env_file:
+      - .env
     environment:
       # 默认下载器 (axel 或 aria2)
       - DOWNLOAD__DEFAULT_DOWNLOADER=axel
@@ -37,4 +39,3 @@ services:
     stdin_open: true
     # 重启策略：不自动重启
     restart: no
-    command: ["download", "--help"]

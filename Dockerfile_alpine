@@ -1,0 +1,72 @@
+# --------------------------------------
+# ① 构建阶段：仅生成 wheel
+# --------------------------------------
+FROM python:3.11-alpine AS builder
+
+# 换国内软件源 & 安装一次性编译工具
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.ustc.edu.cn|g' /etc/apk/repositories && \
+    apk add --no-cache build-base musl-dev libffi-dev
+
+WORKDIR /src
+
+# 拷贝项目元数据 & 源码
+COPY pyproject.toml README.md ./
+COPY bili_downloader ./bili_downloader
+
+# 安装 Poetry → 禁用虚拟环境 → 生成 wheel
+RUN pip install --no-cache-dir poetry -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    poetry config virtualenvs.create false && \
+    poetry build --format=wheel && \
+    ls -1 dist/*.whl
+
+# --------------------------------------
+# ② 运行阶段：极致精简
+# --------------------------------------
+FROM python:3.11-alpine
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
+RUN apk add --no-cache \
+    aria2 \
+    axel \
+    ffmpeg \
+    && rm -rf /var/cache/apk/* /tmp/* \
+    /usr/share/doc /usr/share/man /usr/share/info
+# 清理 apk index & dlib cache 的 stub 文件
+RUN find /usr -name '*.pyc' -delete && rm -rf /var/cache/apk/*
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# 非 root 用户
+RUN addgroup -g 1000 bili && adduser -D -s /bin/sh -u 1000 -G bili bili
+
+WORKDIR /app
+
+# wheel 安装
+COPY --from=builder /src/dist/*.whl ./
+RUN ls *.whl && pip install --no-cache-dir *.whl && rm -f *.whl || echo "No wheel files to install"
+
+# 将业务代码放置镜像（方便热更新）
+COPY --chown=bili:bili bili_downloader ./bili_downloader
+
+# 创建下载目录并赋权
+RUN mkdir -p /downloads && chown bili:bili /downloads
+
+# 默认环境变量
+ENV DOWNLOAD__DEFAULT_DOWNLOADER=axel \
+    DOWNLOAD__DEFAULT_QUALITY=112 \
+    DOWNLOAD__DEFAULT_THREADS=16 \
+    NETWORK__USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+VOLUME ["/downloads"]
+
+# 切换到非root用户
+USER bili
+
+# 检查脚本是否出现
+RUN /usr/local/bin/bili-downloader --help > /dev/null || \
+    (echo "CLI binary not found in /usr/local/bin" && exit 1)
+
+ENTRYPOINT ["bili-downloader"]
+CMD ["--help"]
