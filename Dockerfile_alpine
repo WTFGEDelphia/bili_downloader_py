@@ -45,7 +45,7 @@ WORKDIR /app
 
 # wheel 安装
 COPY --from=builder /src/dist/*.whl ./
-RUN ls *.whl && pip install --no-cache-dir *.whl && rm -f *.whl || echo "No wheel files to install"
+RUN ls -la *.whl && pip install --no-cache-dir *.whl && rm -f *.whl
 
 # 将业务代码放置镜像（方便热更新）
 COPY --chown=bili:bili bili_downloader ./bili_downloader
@@ -65,8 +65,7 @@ VOLUME ["/downloads"]
 USER bili
 
 # 检查脚本是否出现
-RUN /usr/local/bin/bili-downloader --help > /dev/null || \
-    (echo "CLI binary not found in /usr/local/bin" && exit 1)
+RUN which bili-downloader || (echo "CLI binary not found" && exit 1)
 
 ENTRYPOINT ["bili-downloader"]
 CMD ["--help"]

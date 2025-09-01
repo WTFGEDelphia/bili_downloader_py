@@ -71,15 +71,20 @@ def get_cookie():
 def get_user_input(settings: Settings):
     """获取用户输入的 URL、下载目录、清晰度选项、清理选项和下载器类型。"""
     # 从用户获取输入，如果直接回车则使用默认值
+    # URL默认值优先级：环境变量 > 配置文件历史记录 > 空字符串
+    default_url = os.environ.get("DOWNLOAD__DEFAULT_URL", settings.history.last_url)
     video_url = Prompt.ask(
         "Enter Video URL",
-        default="https://www.bilibili.com/bangumi/play/ep1231565?spm_id_from=333.1387.0.0",
+        default=default_url if default_url else "",
     )
 
+    # 下载目录默认值优先级：环境变量 > 配置文件历史记录 > 标准默认目录
+    default_directory = os.environ.get("DOWNLOAD__DEFAULT_DIRECTORY", settings.history.last_directory)
+    if not default_directory:
+        default_directory = str(Path.home() / "Downloads" / "bili_downloader")
     record_url = Prompt.ask(
         "Enter Download Directory",
-        # default=str(Path.home() / "Movies" / "bili_downloader"),
-        default="G:/LLM/ghost_download/bilibili/video/凡人",
+        default=default_directory,
     )
 
     keyword = Prompt.ask(
@@ -93,18 +98,20 @@ def get_user_input(settings: Settings):
     )
 
     # 显示清晰度选项并获取用户选择
+    # 清晰度默认值优先级：环境变量 > 配置文件默认值
+    default_quality = int(os.environ.get("DOWNLOAD__DEFAULT_QUALITY", settings.download.default_quality))
     console.print("\nAvailable quality options:")
     for qn, desc in QUALITY_OPTIONS.items():
-        default_mark = " (default)" if qn == settings.download.default_quality else ""
+        default_mark = " (default)" if qn == default_quality else ""
         console.print(f"  {qn}: {desc}{default_mark}")
 
     while True:
         quality_choice = Prompt.ask(
             f"\nSelect quality (enter number)",
-            default=str(settings.download.default_quality),
+            default=str(default_quality),
         ).strip()
         if not quality_choice:
-            selected_qn = settings.download.default_quality
+            selected_qn = default_quality
             break
         try:
             selected_qn = int(quality_choice)
@@ -118,21 +125,23 @@ def get_user_input(settings: Settings):
             console.print("Please enter a valid number.")
 
     # 显示下载器选项并获取用户选择
+    # 下载器默认值优先级：环境变量 > 配置文件默认值
+    default_downloader = os.environ.get("DOWNLOAD__DEFAULT_DOWNLOADER", settings.download.default_downloader)
     available_downloaders = ["axel", "aria2"]
     console.print("Available downloaders:")
     for i, dl in enumerate(available_downloaders, 1):
         default_mark = (
-            " (default)" if dl == settings.download.default_downloader else ""
+            " (default)" if dl == default_downloader else ""
         )
         console.print(f"  {i}. {dl}{default_mark}")
 
     while True:
         downloader_choice = Prompt.ask(
             f"Select downloader (1-{len(available_downloaders)})",
-            default="1" if settings.download.default_downloader == "axel" else "2",
+            default="1" if default_downloader == "axel" else "2",
         ).strip()
         if not downloader_choice:
-            downloader_type = settings.download.default_downloader
+            downloader_type = default_downloader
             break
         try:
             choice_index = int(downloader_choice) - 1
@@ -202,6 +211,13 @@ def download(
                 get_user_input(settings)
             )
 
+        # 保存历史记录
+        if video_url:
+            settings.history.last_url = video_url
+        if record_url:
+            settings.history.last_directory = record_url
+        settings.save_to_file()
+
         console.print(
             f"Downloading from {video_url} to {record_url} with quality {selected_qn} using {downloader_type}"
         )
@@ -231,7 +247,7 @@ def download(
             console.print(f"  - {file}")
 
     except KeyboardInterrupt:
-        console.print("\\n[yellow]Download interrupted by user.[/yellow]")
+        console.print("\n[yellow]Download interrupted by user.[/yellow]")
         logger.info("Download interrupted by user")
         raise typer.Exit(code=1)
     except APIError as e:

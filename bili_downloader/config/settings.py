@@ -16,6 +16,11 @@ class DownloadSettings(BaseModel):
     )
 
 
+class HistorySettings(BaseModel):
+    last_url: str = Field(default="", description="上次下载的URL")
+    last_directory: str = Field(default="", description="上次下载的目录")
+
+
 class NetworkSettings(BaseModel):
     user_agent: str = Field(
         default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -43,6 +48,7 @@ class Settings(BaseSettings):
     )
 
     download: DownloadSettings = DownloadSettings()
+    history: HistorySettings = HistorySettings()
     network: NetworkSettings = NetworkSettings()
 
     @classmethod
@@ -66,7 +72,20 @@ class Settings(BaseSettings):
         config_file = cls.get_config_file()
         if config_file.exists():
             # 如果配置文件存在，从文件加载
-            return cls(_env_file=config_file, _env_file_encoding="utf-8")
+            # 使用配置文件作为 overrides，而不是完全替换默认值
+            import toml
+            with open(config_file, "r", encoding="utf-8") as f:
+                config_data = toml.load(f)
+            
+            # 创建实例并应用配置文件中的设置
+            settings = cls()
+            if "download" in config_data:
+                settings.download = DownloadSettings(**config_data["download"])
+            if "history" in config_data:
+                settings.history = HistorySettings(**config_data["history"])
+            if "network" in config_data:
+                settings.network = NetworkSettings(**config_data["network"])
+            return settings
         else:
             # 如果配置文件不存在，使用默认设置并保存
             settings = cls()
@@ -85,6 +104,7 @@ class Settings(BaseSettings):
             # 转换为字典并保存
             config_dict = {
                 "download": self.download.model_dump(),
+                "history": self.history.model_dump(),
                 "network": self.network.model_dump(),
             }
             

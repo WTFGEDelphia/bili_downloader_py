@@ -4,7 +4,7 @@ services:
     # 构建上下文为当前目录
     build: .
     # 镜像名称
-    image: bili-downloader:latest
+    image: bili-downloader:alpine
     # 容器名称
     container_name: bili-downloader
     # 工作目录
@@ -16,7 +16,7 @@ services:
       # Cookie文件挂载到容器根目录（便于读取）
       - ./cookie.txt:/app/cookie.txt:ro
       # 配置目录挂载（用于持久化用户配置）
-      - ./config:/home/bilibili/.config/bili-downloader
+      - ./config:/home/bili/.config/bili-downloader
       # .env文件挂载（用于环境变量配置）
       - ./.env:/app/.env:ro
     # 环境变量配置（从.env文件读取）
@@ -39,3 +39,52 @@ services:
     stdin_open: true
     # 重启策略：不自动重启
     restart: no
+    # 以下是一些使用示例：
+    # 1. 交互式下载（显示帮助信息）：
+    # command: ["download", "--help"]
+    #
+    # 2. 交互式下载（直接开始，需要手动输入参数）：
+    # command: ["download"]
+    #
+    # 3. 自动下载（取消注释并修改URL）：
+    # command: ["download", "--url", "YOUR_VIDEO_URL_HERE", "--directory", "/downloads", "--quality", "112", "--downloader", "axel"]
+    command: ["download", "--help"] # 默认显示帮助信息
+
+  # 测试服务（用于调试）
+  bili-downloader-test:
+    # 使用与主服务相同的镜像
+    image: bili-downloader:alpine
+    # 卷挂载
+    volumes:
+      # 下载目录挂载
+      - ./downloads:/downloads
+      # Cookie文件挂载到容器根目录（便于读取）
+      - ./cookie.txt:/app/cookie.txt:ro
+      # 配置目录挂载（用于持久化用户配置）
+      - ./config:/home/bili/.config/bili-downloader
+      # .env文件挂载（用于环境变量配置）
+      - ./.env:/app/.env:ro
+      # 测试脚本挂载
+      - ./test_all_defaults.py:/app/test_all_defaults.py:ro
+    # 环境变量配置（从.env文件读取）
+    env_file:
+      - .env
+    environment:
+      # 默认下载器 (axel 或 aria2)
+      - DOWNLOAD__DEFAULT_DOWNLOADER=axel
+      # 默认下载清晰度
+      - DOWNLOAD__DEFAULT_QUALITY=112
+      # 默认下载线程数
+      - DOWNLOAD__DEFAULT_THREADS=16
+      # 合并后是否清理原始文件
+      - DOWNLOAD__CLEANUP_AFTER_MERGE=false
+      # 请求User-Agent
+      - NETWORK__USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36
+    # 保持TTY连接
+    tty: true
+    # 保持stdin打开
+    stdin_open: true
+    # 重启策略：不自动重启
+    restart: no
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["python /app/test_all_defaults.py"]

@@ -96,7 +96,13 @@ docker-compose run --rm bili-downloader download \
   --directory "/downloads" \
   --quality 112
 
-# 使用环境变量配置（在docker-compose.yml中修改）
+# 使用环境变量配置（在docker-compose.yml中修改command部分以自动下载）
+# 1. 编辑 docker-compose.yml 文件，修改 command 行：
+#    command: ["download", "--url", "YOUR_VIDEO_URL_HERE", "--directory", "/downloads", "--quality", "112", "--downloader", "axel"]
+# 2. 运行：
+#    docker-compose run --rm bili-downloader
+
+# 使用交互式下载（需要手动输入参数）
 docker-compose run --rm bili-downloader download
 ```
 
@@ -133,9 +139,15 @@ default_downloader = "axel"
 default_threads = 16
 cleanup_after_merge = false
 
+[history]
+last_url = ""
+last_directory = ""
+
 [network]
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 ```
+
+程序会自动保存上次使用的URL和下载目录到配置文件中，下次运行时会自动使用这些值作为默认值。
 
 ### 环境变量
 
@@ -149,7 +161,18 @@ export DOWNLOAD__DEFAULT_DOWNLOADER=aria2
 
 # 设置线程数
 export DOWNLOAD__DEFAULT_THREADS=32
+
+# 设置默认URL（优先级高于配置文件中的历史记录）
+export DOWNLOAD__DEFAULT_URL="https://www.bilibili.com/bangumi/play/ep123"
+
+# 设置默认下载目录（优先级高于配置文件中的历史记录）
+export DOWNLOAD__DEFAULT_DIRECTORY="/path/to/downloads"
+
+# 设置合并后是否清理原始文件
+export DOWNLOAD__CLEANUP_AFTER_MERGE=true
 ```
+
+环境变量优先级高于配置文件中的历史记录和默认设置，这使得您可以灵活地为不同的使用场景配置不同的默认值。
 
 ### .env 文件
 
@@ -168,11 +191,17 @@ bili-downloader download
 
 程序会交互式地提示您输入以下信息：
 - 视频 URL (支持番剧主页或单集页面)
+  - 默认值优先级：环境变量 `DOWNLOAD__DEFAULT_URL` > 配置文件历史记录 > 空字符串
 - 下载目录
+  - 默认值优先级：环境变量 `DOWNLOAD__DEFAULT_DIRECTORY` > 配置文件历史记录 > 标准下载目录 (`~/Downloads/bili_downloader`)
 - 关键字过滤（可选，只下载标题包含该关键字的剧集）
+  - 默认值：空字符串
 - 清晰度选择
+  - 默认值优先级：环境变量 `DOWNLOAD__DEFAULT_QUALITY` > 配置文件默认值
 - 下载器选择 (aria2 或 axel)
+  - 默认值优先级：环境变量 `DOWNLOAD__DEFAULT_DOWNLOADER` > 配置文件默认值
 - 是否合并后清理原始文件
+  - 默认值优先级：环境变量 `DOWNLOAD__CLEANUP_AFTER_MERGE` > 配置文件默认值
 
 #### 命令行参数下载 (适合脚本)
 

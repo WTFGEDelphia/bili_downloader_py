@@ -1,17 +1,11 @@
 # --------------------------------------
 # ① 构建阶段：仅生成 wheel
 # --------------------------------------
-FROM python:3.11-slim AS builder
+FROM python:3.11-alpine AS builder
 
 # 换国内软件源 & 安装一次性编译工具
-ARG DEBIAN_FRONTEND=noninteractive
-RUN set -e && \
-    sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' \
-        /etc/apt/sources.list.d/debian.sources && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        build-essential libffi-dev && \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.ustc.edu.cn|g' /etc/apk/repositories && \
+    apk add --no-cache build-base musl-dev libffi-dev
 
 WORKDIR /src
 
@@ -28,37 +22,36 @@ RUN pip install --no-cache-dir poetry -i https://pypi.tuna.tsinghua.edu.cn/simpl
 # --------------------------------------
 # ② 运行阶段：极致精简
 # --------------------------------------
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
-# 换源 & 安装「最小所需软件堆」
-ARG DEBIAN_FRONTEND=noninteractive
-RUN set -e && \
-    sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' \
-        /etc/apt/sources.list.d/debian.sources && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        aria2 axel ffmpeg && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
-           /usr/share/doc/* /usr/share/man/* /usr/share/info/*
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
+RUN apk add --no-cache \
+    aria2 \
+    axel \
+    ffmpeg \
+    && rm -rf /var/cache/apk/* /tmp/* \
+    /usr/share/doc /usr/share/man /usr/share/info
+# 清理 apk index & dlib cache 的 stub 文件
+RUN find /usr -name '*.pyc' -delete && rm -rf /var/cache/apk/*
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # 非 root 用户
-RUN groupadd -r bili && useradd -r -g bili bili
+RUN addgroup -g 1000 bili && adduser -D -s /bin/sh -u 1000 -G bili bili
 
 WORKDIR /app
 
-# wheel 安装 & 路径检查
+# wheel 安装
 COPY --from=builder /src/dist/*.whl ./
-RUN pip --no-cache-dir install *.whl && \
-    rm -f *.whl && \
-    which bili-downloader
+RUN ls -la *.whl && pip install --no-cache-dir *.whl && rm -f *.whl
 
 # 将业务代码放置镜像（方便热更新）
 COPY --chown=bili:bili bili_downloader ./bili_downloader
 
 # 创建下载目录并赋权
-RUN install -d -o bili -g bili /downloads
+RUN mkdir -p /downloads && chown bili:bili /downloads
 
 # 默认环境变量
 ENV DOWNLOAD__DEFAULT_DOWNLOADER=axel \
