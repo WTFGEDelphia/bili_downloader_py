@@ -83,6 +83,9 @@ class DownloaderAxel:
             str(self.num),  # 最大连接数
             "-o",
             self.dest,  # 输出文件名
+            "--max-redirect=10",  # 最大重定向次数
+            "--timeout=30",  # 连接超时时间
+            "--retry=5",  # 重试次数
         ]
 
         # Add headers
@@ -102,7 +105,7 @@ class DownloaderAxel:
         # 使用 -U 参数设置 User-Agent
         if user_agent:
             if isinstance(user_agent, str):
-                escaped_user_agent = user_agent.replace('"', '\\\"').replace("'", "\\'")
+                escaped_user_agent = user_agent.replace('"', '\\\\\\"').replace("'", "\\\\'")
                 cmd.extend(["-U", escaped_user_agent])
             else:
                 cmd.extend(["-U", str(user_agent)])
@@ -110,7 +113,7 @@ class DownloaderAxel:
         # 使用 -H 参数设置 Referer 和其他头部
         if referer:
             if isinstance(referer, str):
-                escaped_referer = referer.replace('"', '\\\"').replace("'", "\\'")
+                escaped_referer = referer.replace('"', '\\\\\\"').replace("'", "\\\\'")
                 cmd.extend(["-H", f"Referer: {escaped_referer}"])
             else:
                 cmd.extend(["-H", f"Referer: {referer}"])
@@ -118,7 +121,7 @@ class DownloaderAxel:
         # 添加其他头部信息
         for key, value in other_headers.items():
             if isinstance(value, str):
-                escaped_value = value.replace('"', '\\\"').replace("'", "\\'")
+                escaped_value = value.replace('"', '\\\\\\"').replace("'", "\\\\'")
                 cmd.extend(["-H", f"{key}: {escaped_value}"])
             else:
                 cmd.extend(["-H", f"{key}: {value}"])
@@ -131,15 +134,13 @@ class DownloaderAxel:
         for attempt in range(1, self.max_retry + 1):
             try:
                 # Use subprocess.run to execute the command
-                # stdout and stderr are captured but not printed by default unless there's an error
-                # You can redirect them to DEVNULL if you don't want to see axel's progress
-                # result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                 result = subprocess.run(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
                     encoding="utf-8",
+                    timeout=300,  # 设置5分钟超时
                 )
 
                 if result.returncode == 0:
@@ -152,6 +153,10 @@ class DownloaderAxel:
                     )
                     # Don't break yet, will retry if attempts left
 
+            except subprocess.TimeoutExpired:
+                logger.error(
+                    f"Attempt {attempt} timed out for {self.url}"
+                )
             except subprocess.SubprocessError as e:
                 logger.error(
                     f"Attempt {attempt} failed for {self.url} with SubprocessError", error=str(e)

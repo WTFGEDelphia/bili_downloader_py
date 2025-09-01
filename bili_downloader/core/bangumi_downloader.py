@@ -492,66 +492,91 @@ class BangumiDownloader:
                 )
                 merged_dest = os.path.join(destdir, f"{episode_title_safe}.mkv")
 
-                # Record download info to file
-                with open(download_list_path, "a", encoding="utf-8") as f:
-                    f.write(
-                        f"{episode_title_safe} | {os.path.basename(audio_dest)} | {os.path.basename(video_dest)} | {os.path.basename(merged_dest)}\n"
-                    )
+                # 检查目标文件是否已存在，如果存在则跳过下载和合并
+                if os.path.exists(merged_dest):
+                    logger.info(f"目标文件已存在，跳过下载和合并: {merged_dest}")
+                    merged_files.append(merged_dest)
+                    
+                    # 更新下载列表状态
+                    with open(download_list_path, "a", encoding="utf-8") as f:
+                        f.write(
+                            f"{episode_title_safe} | {os.path.basename(audio_dest)} | {os.path.basename(video_dest)} | {os.path.basename(merged_dest)} # Status: Skipped (file exists)\n"
+                        )
+                    continue
 
-                # Download audio
-                logger.info("Downloading audio...")
-                try:
-                    self.download_bangumi(
-                        aurl,
-                        audio_dest,
-                        headers=headers,
-                        refurl=refurl,
-                        downloader_type=downloader_type,
-                    )
-                except DownloadError as e:
-                    logger.error(
-                        f"Failed to download audio for episode {i+1}. Skipping.",
-                        error=str(e),
-                    )
-                    # Update download list status
-                    with open(download_list_path, "r", encoding="utf-8") as f:
-                        lines = f.readlines()
-                    with open(download_list_path, "w", encoding="utf-8") as f:
-                        for line in lines[:-1]:  # All lines except the last one
-                            f.write(line)
-                        # Add status to the last line
-                        last_line = lines[-1].strip()
-                        f.write(f"{last_line} # Status: Audio Failed\n")
-                    continue  # Skip to next episode if audio fails
+                # 检查音频和视频文件是否都已存在
+                audio_exists = os.path.exists(audio_dest)
+                video_exists = os.path.exists(video_dest)
+                
+                if audio_exists and video_exists:
+                    logger.info(f"音频和视频文件已存在，跳过下载，直接合并: {episode_title_safe}")
+                else:
+                    # Record download info to file
+                    with open(download_list_path, "a", encoding="utf-8") as f:
+                        f.write(
+                            f"{episode_title_safe} | {os.path.basename(audio_dest)} | {os.path.basename(video_dest)} | {os.path.basename(merged_dest)}\n"
+                        )
 
-                # Download video
-                logger.info(f"Downloading video...")
-                try:
-                    self.download_bangumi(
-                        vurl,
-                        video_dest,
-                        headers=headers,
-                        refurl=refurl,
-                        downloader_type=downloader_type,
-                    )
-                except DownloadError as e:
-                    logger.error(
-                        f"Failed to download video for episode {i+1}. Cleaning up audio and skipping.",
-                        error=str(e),
-                    )
-                    # Update download list status
-                    with open(download_list_path, "r", encoding="utf-8") as f:
-                        lines = f.readlines()
-                    with open(download_list_path, "w", encoding="utf-8") as f:
-                        for line in lines[:-1]:  # All lines except the last one
-                            f.write(line)
-                        # Add status to the last line
-                        last_line = lines[-1].strip()
-                        f.write(f"{last_line} # Status: Video Failed\n")
-                    # Clean up downloaded audio file if video fails
-                    if os.path.exists(audio_dest):
-                        os.remove(audio_dest)
-                    continue  # Skip to next episode if video fails
+                    # Download audio (如果不存在)
+                    if not audio_exists:
+                        logger.info("Downloading audio...")
+                        try:
+                            self.download_bangumi(
+                                aurl,
+                                audio_dest,
+                                headers=headers,
+                                refurl=refurl,
+                                downloader_type=downloader_type,
+                            )
+                        except DownloadError as e:
+                            logger.error(
+                                f"Failed to download audio for episode {i+1}. Skipping.",
+                                error=str(e),
+                            )
+                            # Update download list status
+                            with open(download_list_path, "r", encoding="utf-8") as f:
+                                lines = f.readlines()
+                            with open(download_list_path, "w", encoding="utf-8") as f:
+                                for line in lines[:-1]:  # All lines except the last one
+                                    f.write(line)
+                                # Add status to the last line
+                                last_line = lines[-1].strip()
+                                f.write(f"{last_line} # Status: Audio Failed\n")
+                            continue  # Skip to next episode if audio fails
+                    else:
+                        logger.info(f"音频文件已存在，跳过下载: {audio_dest}")
+
+                    # Download video (如果不存在)
+                    if not video_exists:
+                        logger.info(f"Downloading video...")
+                        try:
+                            self.download_bangumi(
+                                vurl,
+                                video_dest,
+                                headers=headers,
+                                refurl=refurl,
+                                downloader_type=downloader_type,
+                            )
+                        except DownloadError as e:
+                            logger.error(
+                                f"Failed to download video for episode {i+1}. Cleaning up audio and skipping.",
+                                error=str(e),
+                            )
+                            # Update download list status
+                            with open(download_list_path, "r", encoding="utf-8") as f:
+                                lines = f.readlines()
+                            with open(download_list_path, "w", encoding="utf-8") as f:
+                                for line in lines[:-1]:  # All lines except the last one
+                                    f.write(line)
+                                # Add status to the last line
+                                last_line = lines[-1].strip()
+                                f.write(f"{last_line} # Status: Video Failed\n")
+                            # Clean up downloaded audio file if video fails and it was just downloaded
+                            if not audio_exists and os.path.exists(audio_dest):
+                                os.remove(audio_dest)
+                            continue  # Skip to next episode if video fails
+                    else:
+                        logger.info(f"视频文件已存在，跳过下载: {video_dest}")
 
                 # 立即合并下载的音频和视频文件（优先下载合并）
                 logger.info(f"Merging episode {i+1}: {episode_title_safe}...")
