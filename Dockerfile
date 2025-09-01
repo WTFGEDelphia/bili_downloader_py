@@ -16,7 +16,7 @@ RUN set -e && \
 WORKDIR /src
 
 # 拷贝项目元数据 & 源码
-COPY pyproject.toml poetry.lock README.md ./
+COPY pyproject.toml README.md ./
 COPY bili_downloader ./bili_downloader
 
 # 安装 Poetry → 禁用虚拟环境 → 生成 wheel
