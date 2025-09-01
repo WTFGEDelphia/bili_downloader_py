@@ -394,6 +394,7 @@ class BangumiDownloader:
         doclean=False,
         headers=None,
         downloader_type=DEFAULT_DOWNLOADER,
+        keyword="",
     ):
         """根据番剧信息下载所有集数并合并。"""
         if headers is None:
@@ -410,8 +411,6 @@ class BangumiDownloader:
 
         logger.info("Found episodes to download", count=len(episodes))
 
-        audio_files = []
-        video_files = []
         merged_files = []
 
         # Create download directory
@@ -472,6 +471,13 @@ class BangumiDownloader:
                     + display_desc
                 )
                 episode_title_safe = self.sanitize_filename(episode_title)
+
+                # 检查关键字过滤
+                if keyword and keyword not in episode_title_safe:
+                    logger.info(
+                        f"Skipping episode {i+1}/{len(episodes)}: {episode_title_safe} (keyword filter: {keyword})"
+                    )
+                    continue
 
                 logger.info(
                     f"Downloading Episode {i+1}/{len(episodes)}: {episode_title_safe} (aid={aid}, cid={cid})"
@@ -547,73 +553,56 @@ class BangumiDownloader:
                         os.remove(audio_dest)
                     continue  # Skip to next episode if video fails
 
-                # If both downloads succeed, add to lists for merging
-                audio_files.append(audio_dest)
-                video_files.append(video_dest)
+                # 立即合并下载的音频和视频文件（优先下载合并）
+                logger.info(f"Merging episode {i+1}: {episode_title_safe}...")
+                if VAMerger(audio_dest, video_dest, merged_dest).run():
+                    logger.info(f"Merged episode {i+1} successfully.")
+                    merged_files.append(merged_dest)
+                    if doclean:
+                        os.remove(audio_dest)
+                        os.remove(video_dest)
+
+                    # Update download list status
+                    with open(download_list_path, "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                    with open(download_list_path, "w", encoding="utf-8") as f:
+                        for line in lines:
+                            if (
+                                f"{os.path.basename(audio_dest)}" in line
+                                and f"{os.path.basename(video_dest)}" in line
+                            ):
+                                if doclean:
+                                    f.write(
+                                        f"{line.strip()} # Status: Merged (files cleaned)\n"
+                                    )
+                                else:
+                                    f.write(f"{line.strip()} # Status: Merged\n")
+                            else:
+                                f.write(line)
+                else:
+                    logger.error(f"Failed to merge episode {i+1}.")
+                    raise MergeError(f"Failed to merge episode {i+1}.")
+
+                    # Update download list status
+                    with open(download_list_path, "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                    with open(download_list_path, "w", encoding="utf-8") as f:
+                        for line in lines:
+                            if (
+                                f"{os.path.basename(audio_dest)}" in line
+                                and f"{os.path.basename(video_dest)}" in line
+                            ):
+                                f.write(f"{line.strip()} # Status: Merge Failed\n")
+                            else:
+                                f.write(line)
 
             except Exception as e:
                 logger.error(f"Error processing episode {i+1}", error=str(e))
-                # Optionally, clean up partial downloads here if needed
-                # But it's complex without knowing which files were created in this iteration
-                # We rely on the final cleanup loop for now.
                 continue  # Continue with next episode
 
-        # Merge downloaded files
-        if audio_files and video_files:
-            logger.info(f"Merging {len(audio_files)} episodes...")
-            for i, (apath, vpath) in enumerate(zip(audio_files, video_files)):
-                try:
-                    # 从音频文件路径提取文件名（不含扩展名）作为合并后的文件名
-                    base_name = os.path.splitext(os.path.basename(apath))[0]
-                    opath = os.path.join(destdir, f"{base_name}.mkv")
-
-                    logger.info(f"Merging episode {i+1}: {base_name}...")
-                    if VAMerger(apath, vpath, opath).run():
-                        logger.info(f"Merged episode {i+1} successfully.")
-                        merged_files.append(opath)
-                        if doclean:
-                            os.remove(apath)
-                            os.remove(vpath)
-
-                        # Update download list status
-                        download_list_path = os.path.join(destdir, "download_list.txt")
-                        with open(download_list_path, "r", encoding="utf-8") as f:
-                            lines = f.readlines()
-                        with open(download_list_path, "w", encoding="utf-8") as f:
-                            for line in lines:
-                                if (
-                                    f"{base_name}.ogg" in line
-                                    and f"{base_name}.flv" in line
-                                ):
-                                    if doclean:
-                                        f.write(
-                                            f"{line.strip()} # Status: Merged (files cleaned)\n"
-                                        )
-                                    else:
-                                        f.write(f"{line.strip()} # Status: Merged\n")
-                                else:
-                                    f.write(line)
-                    else:
-                        logger.error(f"Failed to merge episode {i+1}.")
-                        raise MergeError(f"Failed to merge episode {i+1}.")
-
-                        # Update download list status
-                        download_list_path = os.path.join(destdir, "download_list.txt")
-                        with open(download_list_path, "r", encoding="utf-8") as f:
-                            lines = f.readlines()
-                        with open(download_list_path, "w", encoding="utf-8") as f:
-                            for line in lines:
-                                if (
-                                    f"{base_name}.ogg" in line
-                                    and f"{base_name}.flv" in line
-                                ):
-                                    f.write(f"{line.strip()} # Status: Merge Failed\n")
-                                else:
-                                    f.write(line)
-                except Exception as e:
-                    logger.error(f"Error merging episode {i+1}", error=str(e))
-        else:
-            logger.warning("No episodes were successfully downloaded to merge.")
+        logger.info(f"Download and merge completed. Merged {len(merged_files)} files:")
+        for file in merged_files:
+            logger.info(f"  - {file}")
 
         return merged_files
 
@@ -624,8 +613,9 @@ class BangumiDownloader:
         doclean=False,
         headers=None,
         downloader_type=DEFAULT_DOWNLOADER,
+        keyword="",
     ):
         """根据番剧信息下载所有集数并合并。为了向后兼容，使用默认清晰度。"""
         return self.download_all_from_info_with_quality(
-            info, destdir, DEFAULT_QN, doclean, headers, downloader_type
+            info, destdir, DEFAULT_QN, doclean, headers, downloader_type, keyword
         )

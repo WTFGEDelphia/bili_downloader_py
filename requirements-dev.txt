@@ -1,0 +1,9 @@
+# 安装项目
+-e .
+
+# 开发依赖
+pytest
+pytest-asyncio
+black
+isort
+ruff

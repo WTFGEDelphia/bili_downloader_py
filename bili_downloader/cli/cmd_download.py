@@ -65,6 +65,11 @@ def get_user_input(settings: Settings):
         default="G:/LLM/ghost_download/bilibili/video/凡人",
     )
 
+    keyword = Prompt.ask(
+        "Enter keyword to filter episodes (leave empty for all episodes)",
+        default="",
+    )
+
     doclean = Confirm.ask(
         "Clean .flv/.ogg files after merging?",
         default=settings.download.cleanup_after_merge,
@@ -131,7 +136,7 @@ def get_user_input(settings: Settings):
         console.print(f"[red]Error: {record_url} exists but is not a directory.[/red]")
         raise typer.Exit(code=1)
 
-    return video_url, record_url, selected_qn, doclean, downloader_type
+    return video_url, record_url, selected_qn, doclean, downloader_type, keyword
 
 
 @app.command()
@@ -142,6 +147,9 @@ def download(
     cleanup: bool = typer.Option(False, "--cleanup", "-c", help="Clean up after merge"),
     downloader: str = typer.Option(
         "", "--downloader", "-D", help="Downloader to use (axel or aria2)"
+    ),
+    keyword: str = typer.Option(
+        "", "--keyword", "-k", help="Keyword to filter episodes (only download if title contains this keyword)"
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
@@ -170,15 +178,18 @@ def download(
             selected_qn = quality
             doclean = cleanup
             downloader_type = downloader
+            filter_keyword = keyword
         else:
             # 否则交互式获取用户输入
-            video_url, record_url, selected_qn, doclean, downloader_type = (
+            video_url, record_url, selected_qn, doclean, downloader_type, filter_keyword = (
                 get_user_input(settings)
             )
 
         console.print(
             f"Downloading from {video_url} to {record_url} with quality {selected_qn} using {downloader_type}"
         )
+        if filter_keyword:
+            console.print(f"Filtering episodes with keyword: {filter_keyword}")
 
         # Create downloader instance
         downloader_instance = BangumiDownloader(cookie)
@@ -187,7 +198,7 @@ def download(
         info = downloader_instance.get_detailed_info_from_url(
             video_url, settings.network.headers
         )
-        # print(f"\\nget detail info: {info}")
+        # print(f"\nget detail info: {info}")
         # Pass the selected quality to the download function
         merged_files = downloader_instance.download_all_from_info_with_quality(
             info,
@@ -196,8 +207,9 @@ def download(
             doclean,
             settings.network.headers,
             downloader_type,
+            filter_keyword,  # Pass keyword filter
         )
-        console.print(f"\\nDownload completed. Merged {len(merged_files)} files:")
+        console.print(f"\nDownload completed. Merged {len(merged_files)} files:")
         for file in merged_files:
             console.print(f"  - {file}")
 

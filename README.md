@@ -11,6 +11,8 @@
 - 结构化的日志记录 (structlog)
 - 自定义异常处理
 - 模块化设计，易于扩展
+- 优先下载合并：下载完一个audio和video后立即创建合并任务
+- 关键字检索能力：只下载文件名包含指定关键字的剧集
 
 ## 安装
 
@@ -105,6 +107,7 @@ bili-downloader download
 程序会交互式地提示您输入以下信息：
 - 视频 URL (支持番剧主页或单集页面)
 - 下载目录
+- 关键字过滤（可选，只下载标题包含该关键字的剧集）
 - 清晰度选择
 - 下载器选择 (aria2 或 axel)
 - 是否合并后清理原始文件
@@ -112,12 +115,13 @@ bili-downloader download
 #### 命令行参数下载 (适合脚本)
 
 ```bash
-bili-downloader download \
-  --url "https://www.bilibili.com/bangumi/play/ep836727" \
-  --directory "/path/to/download" \
-  --quality 112 \
-  --downloader axel \
-  --cleanup
+bili-downloader download \\
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
+  --directory "/path/to/download" \\
+  --quality 112 \\
+  --downloader axel \\
+  --cleanup \\
+  --keyword "cli"
 ```
 
 #### 启用详细日志
@@ -137,10 +141,17 @@ bili-downloader download -v
 bili-downloader download
 
 # 直接下载特定剧集
-bili-downloader download \
-  --url "https://www.bilibili.com/bangumi/play/ep836727" \
-  --directory "./downloads" \
+bili-downloader download \\
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
+  --directory "./downloads" \\
   --quality 112
+
+# 下载标题包含"战斗"的剧集
+bili-downloader download \\
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
+  --directory "./downloads" \\
+  --quality 112 \\
+  --keyword "战斗"
 ```
 
 ## 支持的 URL 格式
