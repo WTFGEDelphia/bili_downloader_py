@@ -60,10 +60,36 @@ class Settings(BaseSettings):
         """获取配置文件路径"""
         return cls.get_config_dir() / "config.toml"
 
+    @classmethod
+    def load_from_file(cls) -> "Settings":
+        """从配置文件加载设置"""
+        config_file = cls.get_config_file()
+        if config_file.exists():
+            # 如果配置文件存在，从文件加载
+            return cls(_env_file=config_file, _env_file_encoding="utf-8")
+        else:
+            # 如果配置文件不存在，使用默认设置并保存
+            settings = cls()
+            settings.save_to_file()
+            return settings
+
     def save_to_file(self) -> None:
         """保存配置到文件"""
-        import toml
-
-        config_file = self.get_config_file()
-        with open(config_file, "w", encoding="utf-8") as f:
-            toml.dump(self.model_dump(), f)
+        try:
+            import toml
+            
+            config_file = self.get_config_file()
+            # 确保配置目录存在
+            config_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 转换为字典并保存
+            config_dict = {
+                "download": self.download.model_dump(),
+                "network": self.network.model_dump(),
+            }
+            
+            with open(config_file, "w", encoding="utf-8") as f:
+                toml.dump(config_dict, f)
+        except Exception as e:
+            # 如果保存失败，不抛出异常，但记录日志
+            print(f"Warning: Could not save config to file: {e}")

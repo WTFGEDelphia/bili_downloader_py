@@ -25,21 +25,38 @@ console = Console()
 def get_cookie():
     """尝试从文件读取 Cookie，如果失败则提示用户输入。"""
     cookie = ""
-    # 尝试使用 __file__ 获取更可靠的脚本路径
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    cookie_file_path = os.path.join(script_dir, "..", "..", "cookie.txt")
-
-    if os.path.exists(cookie_file_path):
+    # 定义多个可能的cookie文件路径
+    possible_paths = [
+        # Docker环境中的挂载路径
+        "/app/cookie.txt",
+        "/config/cookie.txt",
+        # 项目根目录（相对于当前工作目录）
+        "cookie.txt",
+        "./cookie.txt",
+        # 原始路径
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "cookie.txt"),
+    ]
+    
+    cookie_file_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            cookie_file_path = path
+            break
+    
+    if cookie_file_path:
         try:
             with open(cookie_file_path, "r") as f:
                 cookie = f.read().strip()
+            console.print(f"Info: Cookie loaded from {cookie_file_path}")
         except Exception as e:
             console.print(
                 f"Warning: Could not read cookie from {cookie_file_path}: {e}"
             )
             console.print("Please paste your cookie when prompted.")
     else:
-        console.print(f"Info: Cookie file not found at {cookie_file_path}.")
+        console.print("Info: Cookie file not found in any of the expected locations:")
+        for path in possible_paths:
+            console.print(f"  - {path}")
         console.print("Please paste your cookie when prompted.")
 
     if not cookie:
@@ -164,8 +181,8 @@ def download(
     configure_logger(verbose)
 
     try:
-        # Load settings
-        settings = Settings()
+        # Load settings from file or create default
+        settings = Settings.load_from_file()
 
         # Cookie
         cookie = get_cookie()

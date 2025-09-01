@@ -83,6 +83,23 @@ docker run -it --rm \
   bili-downloader download
 ```
 
+### 使用 Docker Compose (推荐)
+
+```bash
+# 构建并启动服务
+docker-compose build
+docker-compose run --rm bili-downloader download
+
+# 直接下载特定剧集
+docker-compose run --rm bili-downloader download \
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \
+  --directory "/downloads" \
+  --quality 112
+
+# 使用环境变量配置（在docker-compose.yml中修改）
+docker-compose run --rm bili-downloader download
+```
+
 ## 使用方法
 
 ### 1. 获取 Bilibili Cookie:
@@ -93,37 +110,52 @@ docker run -it --rm \
 - 找到任意请求，复制 Request Headers 中的 Cookie 值
 - 将 Cookie 值保存到项目根目录的 `cookie.txt` 文件中
 
-### 2. 配置环境变量（可选）:
+## 配置
 
-复制 `.env.example` 文件为 `.env` 并根据需要修改配置：
+程序支持多种配置方式，优先级从高到低为：
+1. 命令行参数
+2. 环境变量
+3. 配置文件 (`~/.config/bili-downloader/config.toml`)
+4. `.env` 文件
+5. 默认值
 
-```bash
-cp .env.example .env
+### 配置文件
+
+程序会在首次运行时自动创建配置文件，路径根据操作系统不同：
+- **Linux/macOS**: `~/.config/bili-downloader/config.toml`
+- **Windows**: `C:\Users\{username}\AppData\Roaming\bili-downloader\config.toml`
+
+配置文件内容示例：
+```toml
+[download]
+default_quality = 112
+default_downloader = "axel"
+default_threads = 16
+cleanup_after_merge = false
+
+[network]
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 ```
 
-程序启动时会自动加载项目根目录下的 `.env` 文件。配置选项：
-- `DOWNLOAD__DEFAULT_QUALITY`: 默认下载清晰度 (默认: 112)
-- `DOWNLOAD__DEFAULT_DOWNLOADER`: 默认下载器 (axel 或 aria2，默认: axel)
-- `DOWNLOAD__DEFAULT_THREADS`: 默认下载线程数 (默认: 16)
-- `DOWNLOAD__CLEANUP_AFTER_MERGE`: 合并后是否清理原始文件 (默认: false)
-- `NETWORK__USER_AGENT`: 请求使用的 User-Agent (默认: Chrome浏览器标识)
+### 环境变量
 
-除了通过 `.env` 文件配置，也可以通过操作系统的环境变量来设置配置，环境变量的优先级高于 `.env` 文件。
-
-**下载器路径配置**：
-如果系统中没有将 `aria2c` 或 `axel` 添加到系统 PATH，可以通过以下环境变量指定可执行文件路径：
-- `ARIA2C_PATH`: aria2c 可执行文件的完整路径
-- `AXEL_PATH`: axel 可执行文件的完整路径
-
-例如：
+您也可以通过环境变量来配置程序：
 ```bash
-# Windows
-set ARIA2C_PATH=C:\tools\aria2\aria2c.exe
-set AXEL_PATH=C:\tools\axel\axel.exe
+# 设置默认下载清晰度
+export DOWNLOAD__DEFAULT_QUALITY=80
 
-# Linux/macOS
-export ARIA2C_PATH=/usr/local/bin/aria2c
-export AXEL_PATH=/usr/local/bin/axel
+# 设置默认下载器
+export DOWNLOAD__DEFAULT_DOWNLOADER=aria2
+
+# 设置线程数
+export DOWNLOAD__DEFAULT_THREADS=32
+```
+
+### .env 文件
+
+复制 `.env.example` 文件为 `.env` 并根据需要修改配置：
+```bash
+cp .env.example .env
 ```
 
 ### 3. 运行下载命令:
