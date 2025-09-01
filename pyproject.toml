@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bili_downloader"
-version = "0.1.0"
+version = "0.2.0"
 description = "哔哩哔哩番剧下载工具"
 authors = ["Your Name <you@example.com>"]
 license = "MIT"
