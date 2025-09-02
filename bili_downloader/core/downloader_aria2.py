@@ -12,7 +12,7 @@ def find_executable(name):
     env_path = os.environ.get(env_var_name)
     if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
         return env_path
-    
+
     # 2. Check in the same directory as this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     exe_path = os.path.join(script_dir, name)
@@ -28,7 +28,7 @@ def find_executable(name):
     system_path = shutil.which(name)
     if system_path:
         return system_path
-        
+
     # 5. Check with .exe extension in system PATH (for Windows)
     system_path_exe = shutil.which(f"{name}.exe")
     if system_path_exe:
@@ -61,7 +61,7 @@ class DownloaderAria2:
         if aria2c_path is None:
             logger.error("Aria2c executable not found. Cannot download file.")
             return False
-            
+
         # Ensure destination directory exists
         os.makedirs(os.path.dirname(self.dest), exist_ok=True)
 
@@ -143,11 +143,13 @@ class DownloaderAria2:
 
             except subprocess.SubprocessError as e:
                 logger.error(
-                    f"Attempt {attempt} failed for {self.url} with SubprocessError", error=str(e)
+                    f"Attempt {attempt} failed for {self.url} with SubprocessError",
+                    error=str(e),
                 )
             except Exception as e:
                 logger.error(
-                    f"Attempt {attempt} failed for {self.url} with unexpected error", error=str(e)
+                    f"Attempt {attempt} failed for {self.url} with unexpected error",
+                    error=str(e),
                 )
 
             if attempt < self.max_retry:

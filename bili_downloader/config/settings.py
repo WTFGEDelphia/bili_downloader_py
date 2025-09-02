@@ -74,9 +74,10 @@ class Settings(BaseSettings):
             # 如果配置文件存在，从文件加载
             # 使用配置文件作为 overrides，而不是完全替换默认值
             import toml
+
             with open(config_file, "r", encoding="utf-8") as f:
                 config_data = toml.load(f)
-            
+
             # 创建实例并应用配置文件中的设置
             settings = cls()
             if "download" in config_data:
@@ -96,18 +97,18 @@ class Settings(BaseSettings):
         """保存配置到文件"""
         try:
             import toml
-            
+
             config_file = self.get_config_file()
             # 确保配置目录存在
             config_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # 转换为字典并保存
             config_dict = {
                 "download": self.download.model_dump(),
                 "history": self.history.model_dump(),
                 "network": self.network.model_dump(),
             }
-            
+
             with open(config_file, "w", encoding="utf-8") as f:
                 toml.dump(config_dict, f)
         except Exception as e:

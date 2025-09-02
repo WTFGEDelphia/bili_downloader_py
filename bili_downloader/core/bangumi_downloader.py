@@ -1,16 +1,16 @@
 import json
 import os
 import re
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
-from typing import Dict, Any, Tuple, List, Optional
 
 import requests
 
 from bili_downloader.core.downloader_aria2 import DownloaderAria2
 from bili_downloader.core.downloader_axel import DownloaderAxel
 from bili_downloader.core.vamerger import VAMerger
-from bili_downloader.utils.logger import logger
 from bili_downloader.exceptions import APIError, DownloadError, MergeError
+from bili_downloader.utils.logger import logger
 
 # Default quality and format parameters
 DEFAULT_QN = 112
@@ -87,12 +87,15 @@ class BangumiDownloader:
         """根据 media_id 获取番剧基础信息。"""
         if headers is None:
             headers = {}
-            
+
         # 确保必要的请求头存在
         headers = headers.copy()
-        headers.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        headers.setdefault(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        )
         headers.setdefault("Referer", "https://www.bilibili.com")
-        
+
         # Make a copy of the cookie dict to avoid modifying the original
         cookie_dict = (
             self.cookie.copy() if self.cookie and isinstance(self.cookie, dict) else {}
@@ -112,25 +115,38 @@ class BangumiDownloader:
             self.check_result_code(result)
             return result["result"]["media"]
         except requests.exceptions.RequestException as e:
-            logger.error("Error fetching bangumi info for media_id", media_id=media_id, error=str(e))
-            raise DownloadError(f"Error fetching bangumi info for media_id {media_id}: {e}") from e
+            logger.error(
+                "Error fetching bangumi info for media_id",
+                media_id=media_id,
+                error=str(e),
+            )
+            raise DownloadError(
+                f"Error fetching bangumi info for media_id {media_id}: {e}"
+            ) from e
         except json.JSONDecodeError:
             logger.error("Error decoding JSON response for media_id", media_id=media_id)
             raise DownloadError(f"Error decoding JSON response for media_id {media_id}")
         except KeyError:
-            logger.error("Unexpected response structure for media_id", media_id=media_id)
-            raise DownloadError(f"Unexpected response structure for media_id {media_id}")
+            logger.error(
+                "Unexpected response structure for media_id", media_id=media_id
+            )
+            raise DownloadError(
+                f"Unexpected response structure for media_id {media_id}"
+            )
 
     def get_detailed_bangumi_info_from_season_id(self, season_id, headers=None):
         """根据 season_id 获取番剧详细信息。"""
         if headers is None:
             headers = {}
-            
+
         # 确保必要的请求头存在
         headers = headers.copy()
-        headers.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        headers.setdefault(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        )
         headers.setdefault("Referer", "https://www.bilibili.com")
-        
+
         # Make a copy of the cookie dict to avoid modifying the original
         cookie_dict = (
             self.cookie.copy() if self.cookie and isinstance(self.cookie, dict) else {}
@@ -150,25 +166,42 @@ class BangumiDownloader:
             self.check_result_code(result)
             return result["result"]
         except requests.exceptions.RequestException as e:
-            logger.error("Error fetching detailed bangumi info for season_id", season_id=season_id, error=str(e))
-            raise DownloadError(f"Error fetching detailed bangumi info for season_id {season_id}: {e}") from e
+            logger.error(
+                "Error fetching detailed bangumi info for season_id",
+                season_id=season_id,
+                error=str(e),
+            )
+            raise DownloadError(
+                f"Error fetching detailed bangumi info for season_id {season_id}: {e}"
+            ) from e
         except json.JSONDecodeError:
-            logger.error("Error decoding JSON response for season_id", season_id=season_id)
-            raise DownloadError(f"Error decoding JSON response for season_id {season_id}")
+            logger.error(
+                "Error decoding JSON response for season_id", season_id=season_id
+            )
+            raise DownloadError(
+                f"Error decoding JSON response for season_id {season_id}"
+            )
         except KeyError:
-            logger.error("Unexpected response structure for season_id", season_id=season_id)
-            raise DownloadError(f"Unexpected response structure for season_id {season_id}")
+            logger.error(
+                "Unexpected response structure for season_id", season_id=season_id
+            )
+            raise DownloadError(
+                f"Unexpected response structure for season_id {season_id}"
+            )
 
     def get_detailed_bangumi_info_from_ep_id(self, ep_id, headers=None):
         """根据 ep_id 获取番剧详细信息。"""
         if headers is None:
             headers = {}
-        
+
         # 确保必要的请求头存在
         headers = headers.copy()
-        headers.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        headers.setdefault(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        )
         headers.setdefault("Referer", "https://www.bilibili.com")
-        
+
         logger.info(f"header is {headers}")
         params = {"ep_id": ep_id}
         try:
@@ -183,8 +216,14 @@ class BangumiDownloader:
             self.check_result_code(result)
             return result["result"]
         except requests.exceptions.RequestException as e:
-            logger.error("Error fetching detailed bangumi info for ep_id", ep_id=ep_id, error=str(e))
-            raise DownloadError(f"Error fetching detailed bangumi info for ep_id {ep_id}: {e}") from e
+            logger.error(
+                "Error fetching detailed bangumi info for ep_id",
+                ep_id=ep_id,
+                error=str(e),
+            )
+            raise DownloadError(
+                f"Error fetching detailed bangumi info for ep_id {ep_id}: {e}"
+            ) from e
         except json.JSONDecodeError:
             logger.error("Error decoding JSON response for ep_id", ep_id=ep_id)
             raise DownloadError(f"Error decoding JSON response for ep_id {ep_id}")
@@ -496,7 +535,7 @@ class BangumiDownloader:
                 if os.path.exists(merged_dest):
                     logger.info(f"目标文件已存在，跳过下载和合并: {merged_dest}")
                     merged_files.append(merged_dest)
-                    
+
                     # 更新下载列表状态
                     with open(download_list_path, "a", encoding="utf-8") as f:
                         f.write(
@@ -507,9 +546,11 @@ class BangumiDownloader:
                 # 检查音频和视频文件是否都已存在
                 audio_exists = os.path.exists(audio_dest)
                 video_exists = os.path.exists(video_dest)
-                
+
                 if audio_exists and video_exists:
-                    logger.info(f"音频和视频文件已存在，跳过下载，直接合并: {episode_title_safe}")
+                    logger.info(
+                        f"音频和视频文件已存在，跳过下载，直接合并: {episode_title_safe}"
+                    )
                 else:
                     # Record download info to file
                     with open(download_list_path, "a", encoding="utf-8") as f:

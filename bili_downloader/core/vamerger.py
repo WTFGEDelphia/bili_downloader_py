@@ -92,8 +92,12 @@ class VAMerger:
                 return False
 
         except subprocess.SubprocessError as e:
-            logger.error(f"Merge failed for {self.output} with SubprocessError", error=str(e))
+            logger.error(
+                f"Merge failed for {self.output} with SubprocessError", error=str(e)
+            )
             return False
         except Exception as e:
-            logger.error(f"Merge failed for {self.output} with unexpected error", error=str(e))
+            logger.error(
+                f"Merge failed for {self.output} with unexpected error", error=str(e)
+            )
             return False

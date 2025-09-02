@@ -3,20 +3,20 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm, Prompt
 
-from bili_downloader.core.bangumi_downloader import (
-    BangumiDownloader,
-    QUALITY_OPTIONS,
-)
 from bili_downloader.config.settings import Settings
+from bili_downloader.core.bangumi_downloader import (
+    QUALITY_OPTIONS,
+    BangumiDownloader,
+)
 from bili_downloader.exceptions import (
+    APIError,
     BiliDownloaderError,
     DownloadError,
     MergeError,
-    APIError,
 )
-from bili_downloader.utils.logger import logger, configure_logger
+from bili_downloader.utils.logger import configure_logger, logger
 
 app = typer.Typer()
 console = Console()
@@ -171,6 +171,17 @@ def get_user_input(settings: Settings):
     return video_url, record_url, selected_qn, doclean, downloader_type, keyword
 
 
+def env_bool(key: str, default: bool = False) -> bool:
+    """把环境变量 key 解析为 bool；未设置或空串返回 default。"""
+    val = os.environ.get(key, "").strip().lower()
+    if val in {"1", "true", "yes", "on"}:
+        return True
+    if val in {"0", "false", "no", "off", ""}:
+        return False
+    # 如果值既不是上面任何一项，就按 Python 的 bool 语义兜底
+    return bool(val)
+
+
 @app.command()
 def download(
     url: str = typer.Option("", "--url", "-u", help="Video URL to download"),
@@ -209,22 +220,35 @@ def download(
         # 检查是否通过命令行提供了必要的参数 (url 和 directory)
         # 如果提供了，则使用命令行参数，并从 settings 或 defaults 获取其他参数的值
         # 否则，进入交互式模式
-        if url and directory:
+        if url:
             # 使用命令行参数
             video_url = url
-            record_url = directory
-            # 对于其他参数，如果命令行未提供，则使用配置文件或默认值
-            selected_qn = quality if quality > 0 else settings.download.default_quality
-            doclean = cleanup if cleanup else settings.download.cleanup_after_merge
-            downloader_type = (
-                downloader if downloader else settings.download.default_downloader
+            default_directory = os.environ.get(
+                "DOWNLOAD__DEFAULT_DIRECTORY", settings.history.last_directory
             )
+            directory = directory if directory else default_directory
+            # 对于其他参数，如果命令行未提供，则使用配置文件或默认值
+            default_quality = os.environ.get(
+                "DOWNLOAD__DEFAULT_QUALITY", settings.download.default_quality
+            )
+            default_cleanup = env_bool(
+                "DOWNLOAD__CLEANUP_AFTER_MERGE", settings.download.cleanup_after_merge
+            )
+            default_threads = os.environ.get(
+                "DOWNLOAD__DEFAULT_THREADS", settings.download.default_threads
+            )
+            default_downloader = os.environ.get(
+                "DOWNLOAD__DEFAULT_DOWNLOADER", settings.download.default_downloader
+            )
+            selected_qn = quality if quality > 0 else int(default_quality)
+            doclean = cleanup if cleanup else default_cleanup
+            downloader_type = downloader if downloader else default_downloader
             filter_keyword = keyword  # keyword 的默认值是空字符串，符合预期
         else:
             # 否则交互式获取用户输入
             (
                 video_url,
-                record_url,
+                directory,
                 selected_qn,
                 doclean,
                 downloader_type,
@@ -234,12 +258,12 @@ def download(
         # 保存历史记录
         if video_url:
             settings.history.last_url = video_url
-        if record_url:
-            settings.history.last_directory = record_url
+        if directory:
+            settings.history.last_directory = directory
         settings.save_to_file()
 
         console.print(
-            f"Downloading from {video_url} to {record_url} with quality {selected_qn} using {downloader_type}"
+            f"Downloading from {video_url} to {directory} with quality {selected_qn} using {downloader_type}"
         )
         if filter_keyword:
             console.print(f"Filtering episodes with keyword: {filter_keyword}")
@@ -255,7 +279,7 @@ def download(
         # Pass the selected quality to the download function
         merged_files = downloader_instance.download_all_from_info_with_quality(
             info,
-            record_url,
+            directory,
             selected_qn,
             doclean,
             settings.network.headers,

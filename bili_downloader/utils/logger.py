@@ -1,17 +1,19 @@
-import structlog
-import sys
 import os
+import sys
+
+import structlog
+
 
 def configure_logger(verbose: bool = False):
     """
     配置 structlog 日志记录器。
-    
+
     Args:
         verbose (bool): 是否启用详细日志。
     """
     # 配置根 logger
     level = "DEBUG" if verbose else "INFO"
-    
+
     # 使用更简单的配置
     structlog.configure(
         processors=[
@@ -31,11 +33,13 @@ def configure_logger(verbose: bool = False):
 
     # 配置基本的日志记录
     import logging
+
     logging.basicConfig(
         level=level,
         format="%(message)s",
         stream=sys.stderr,
     )
+
 
 # 创建全局 logger 实例
 logger = structlog.get_logger()
