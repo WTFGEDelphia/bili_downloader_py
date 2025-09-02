@@ -1,139 +1,231 @@
 # Bilibili Bangumi Downloader
 
-## 功能特点
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![Poetry](https://img.shields.io/badge/dependency%20manager-Poetry-blue)](https://python-poetry.org/)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)
 
-- 支持下载哔哩哔哩番剧视频
-- 支持多种下载器后端 (aria2, axel)
-- 支持视频流合并
-- 使用 `requests` 库进行网络请求
-- 命令行界面 (CLI) 驱动，基于 Typer 构建
-- 支持配置文件和环境变量
-- 结构化的日志记录 (structlog)
-- 自定义异常处理
-- 模块化设计，易于扩展
-- 优先下载合并：下载完一个audio和video后立即创建合并任务
-- 关键字检索能力：只下载文件名包含指定关键字的剧集
+A powerful and user-friendly command-line tool for downloading Bilibili bangumi (anime) videos with high quality and efficiency.
 
-## 安装
+## 🌟 Features
 
-### 使用 Poetry (推荐)
+- **High-Quality Downloads**: Support for multiple video qualities including 1080P+, 4K, HDR, and Dolby Vision (requires Bilibili Premium).
+- **Flexible Downloaders**: Choose between `aria2` and `axel` for optimized download speeds.
+- **Smart Merging**: Automatically merges downloaded audio and video streams into a single `.mkv` file.
+- **Keyword Filtering**: Download only episodes whose titles contain a specific keyword.
+- **Configurable & Persistent**: Save your preferences and history using TOML config files and environment variables.
+- **Docker Support**: Run the downloader in an isolated container environment for easy setup and deployment.
+- **Detailed Logging**: Structured logging with `structlog` for easy debugging and monitoring.
+- **Modular Design**: Easy to extend and maintain, built with Python best practices.
+
+## 📦 Installation
+
+### Prerequisites
+
+Before installing the Bilibili Bangumi Downloader, ensure you have the following installed on your system:
+
+- **Python 3.11 or higher** ([Download Python](https://www.python.org/downloads/))
+- **Poetry** (recommended for dependency management) - [Installation Guide](https://python-poetry.org/docs/#installation)
+- **FFmpeg** (for merging audio and video) - [Download FFmpeg](https://ffmpeg.org/download.html)
+- **Aria2 or Axel** (optional, for accelerated downloads) - Install via your system's package manager or download from their official sites.
+
+### Option 1: Using Poetry (Recommended)
 
 ```bash
-# 克隆项目
+# Clone the repository
 git clone https://github.com/WTFGEDelphia/bili_downloader_py.git
 cd bili_downloader_py
 
-# 安装依赖
+# Install dependencies
 poetry install
 
-# 激活虚拟环境
+# Activate the virtual environment
 poetry shell
 
-# 运行程序
+# Run the program
 bili-downloader download
 ```
 
-### 使用 pip
+### Option 2: Using pip
 
 ```bash
-# 克隆项目
+# Clone the repository
 git clone https://github.com/WTFGEDelphia/bili_downloader_py.git
 cd bili_downloader_py
 
-# 创建虚拟环境 (可选但推荐)
+# (Optional but recommended) Create a virtual environment
 python -m venv .venv
 source .venv/bin/activate  # Linux/macOS
-# 或
-.venv\Scripts\activate  # Windows
+# Or
+.venv\\Scripts\\activate     # Windows
 
-# 安装依赖
+# Install the package
 pip install .
 
-# 运行程序
+# Run the program
 bili-downloader download
 ```
 
-### 使用 Docker (推荐)
+### Option 3: Using Docker (Recommended for Isolation)
 
 ```bash
-# 构建镜像
+# Build the Docker image
 docker build -t bili-downloader .
-docker build -t bili-downloader:alpine .
-docker build --no-cache -t bili-downloader:alpine .
 
-# 运行交互式下载
-docker run -it --rm \
-  -v $(pwd)/downloads:/downloads \
-  -v $(pwd)/cookie.txt:/app/cookie.txt \
+# Run interactively
+docker run -it --rm \\
+  -v $(pwd)/downloads:/app/downloads \\
+  -v $(pwd)/cookie.txt:/app/cookie.txt:ro \\
   bili-downloader download
 
-# 或者直接下载特定剧集
-docker run -it --rm \
-  -v $(pwd)/downloads:/downloads \
-  -v $(pwd)/cookie.txt:/app/cookie.txt \
-  bili-downloader download \
-  --url "https://www.bilibili.com/bangumi/play/ep836727" \
-  --directory "/downloads" \
+# Or download a specific episode directly
+docker run -it --rm \\
+  -v $(pwd)/downloads:/app/downloads \\
+  -v $(pwd)/cookie.txt:/app/cookie.txt:ro \\
+  bili-downloader download \\
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
+  --directory "/app/downloads" \\
   --quality 112
 
-# 使用环境变量配置
-docker run -it --rm \
-  -v $(pwd)/downloads:/downloads \
-  -v $(pwd)/cookie.txt:/app/cookie.txt \
-  -e DOWNLOAD__DEFAULT_DOWNLOADER=aria2 \
-  -e DOWNLOAD__DEFAULT_QUALITY=80 \
+# Using environment variables for configuration
+docker run -it --rm \\
+  -v $(pwd)/downloads:/app/downloads \\
+  -v $(pwd)/cookie.txt:/app/cookie.txt:ro \\
+  -e DOWNLOAD__DEFAULT_DOWNLOADER=aria2 \\
+  -e DOWNLOAD__DEFAULT_QUALITY=80 \\
   bili-downloader download
 ```
 
-### 使用 Docker Compose (推荐)
+### Option 4: Using Docker Compose (Recommended for Ease of Use)
 
 ```bash
-# 构建并启动服务
-docker-compose build
+# Build and run interactively
 docker-compose run --rm bili-downloader download
 
-# 直接下载特定剧集
-docker-compose run --rm bili-downloader download \
-  --url "https://www.bilibili.com/bangumi/play/ep836727" \
-  --directory "/downloads" \
+# Download a specific episode directly
+docker-compose run --rm bili-downloader download \\
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
+  --directory "/app/downloads" \\
   --quality 112
 
-# 使用环境变量配置（在docker-compose.yml中修改command部分以自动下载）
-# 1. 编辑 docker-compose.yml 文件，修改 command 行：
-#    command: ["download", "--url", "YOUR_VIDEO_URL_HERE", "--directory", "/downloads", "--quality", "112", "--downloader", "axel"]
-# 2. 运行：
+# Edit `docker-compose.yml` to set default command for automated downloads
+# 1. Modify the `command` line in `docker-compose.yml`:
+#    command: ["download", "--url", "YOUR_VIDEO_URL_HERE", "--directory", "/app/downloads", "--quality", "112", "--downloader", "axel"]
+# 2. Run:
 #    docker-compose run --rm bili-downloader
-
-# 使用交互式下载（需要手动输入参数）
-docker-compose run --rm bili-downloader download
 ```
 
-## 使用方法
+## 🚀 Quick Start
 
-### 1. 获取 Bilibili Cookie:
+### 1. Get Your Bilibili Cookie
 
-- 登录 Bilibili 网站
-- 打开浏览器开发者工具 (F12)
-- 在 Network 标签页刷新页面
-- 找到任意请求，复制 Request Headers 中的 Cookie 值
-- 将 Cookie 值保存到项目根目录的 `cookie.txt` 文件中
+To download videos, you need a valid Bilibili account cookie.
 
-## 配置
+1. Log in to [Bilibili](https://www.bilibili.com/).
+2. Open your browser's Developer Tools (F12).
+3. Go to the Network tab and refresh the page.
+4. Find any request, right-click, and select "Copy" > "Copy Request Headers".
+5. Extract the `Cookie` value from the copied headers.
+6. Save this cookie value to a file named `cookie.txt` in the project's root directory.
 
-程序支持多种配置方式，优先级从高到低为：
-1. 命令行参数
-2. 环境变量
-3. 配置文件 (`~/.config/bili-downloader/config.toml`)
-4. `.env` 文件
-5. 默认值
+### 2. Run the Downloader
 
-### 配置文件
+#### Interactive Mode (Recommended for Beginners)
 
-程序会在首次运行时自动创建配置文件，路径根据操作系统不同：
+```bash
+bili-downloader download
+```
+
+The program will prompt you for:
+- Video URL (Bangumi homepage or episode page)
+- Download directory
+- Keyword filter (optional)
+- Video quality
+- Downloader (aria2 or axel)
+- Whether to clean up original files after merging
+
+#### Command-Line Mode (For Scripts/Automation)
+
+```bash
+bili-downloader download \\
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
+  --directory "./downloads" \\
+  --quality 112 \\
+  --downloader axel \\
+  --cleanup \\
+  --keyword "cli"
+```
+
+#### Enable Verbose Logging
+
+```bash
+bili-downloader download --verbose
+# Or
+bili-downloader download -v
+```
+
+### 3. Quick Examples
+
+After creating your `cookie.txt` file, you can run:
+
+```bash
+# Interactive download
+bili-downloader download
+
+# Download a specific episode
+bili-downloader download \\
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
+  --directory "./downloads" \\
+  --quality 112
+
+# Download only episodes with "战斗" (battle) in the title
+bili-downloader download \\
+  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
+  --directory "./downloads" \\
+  --quality 112 \\
+  --keyword "战斗"
+```
+
+## 📚 Supported URL Formats
+
+- **Bangumi Homepage**: `https://www.bilibili.com/bangumi/media/md191`
+- **Episode Page**: `https://www.bilibili.com/bangumi/play/ep836727`
+
+## 📺 Video Quality Options
+
+| Code | Description                      |
+|------|----------------------------------|
+| 6    | 240P Extreme (MP4 only)          |
+| 16   | 360P Smooth (Default minimum)    |
+| 32   | 480P Clear (No login required)   |
+| 64   | 720P HD (Login required)         |
+| 74   | 720P60 High Frame Rate (Login)   |
+| 80   | 1080P HD (Login required)        |
+| 112  | 1080P+ High Bitrate (Premium)    |
+| 116  | 1080P60 High Frame Rate (Premium)|
+| 120  | 4K Ultra HD (Premium)            |
+| 125  | HDR True Color (Premium)         |
+| 126  | Dolby Vision (Premium)           |
+| 127  | 8K Ultra HD (Premium)            |
+
+## ⚙️ Configuration
+
+The downloader supports configuration through multiple methods, with the following priority (highest to lowest):
+
+1. Command-line arguments
+2. Environment variables
+3. Configuration file (`~/.config/bili-downloader/config.toml`)
+4. `.env` file
+5. Built-in defaults
+
+### Configuration File
+
+On first run, the program will create a default configuration file:
 - **Linux/macOS**: `~/.config/bili-downloader/config.toml`
-- **Windows**: `C:\Users\{username}\AppData\Roaming\bili-downloader\config.toml`
+- **Windows**: `C:\\Users\\{username}\\AppData\\Roaming\\bili-downloader\\config.toml`
 
-配置文件内容示例：
+Example `config.toml`:
+
 ```toml
 [download]
 default_quality = 112
@@ -149,167 +241,87 @@ last_directory = ""
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 ```
 
-程序会自动保存上次使用的URL和下载目录到配置文件中，下次运行时会自动使用这些值作为默认值。
+The program will automatically save the last used URL and download directory, which will be used as defaults in subsequent runs.
 
-### 环境变量
+### Environment Variables
 
-您也可以通过环境变量来配置程序：
+You can also configure the program using environment variables:
+
 ```bash
-# 设置默认下载清晰度
+# Set default download quality
 export DOWNLOAD__DEFAULT_QUALITY=80
 
-# 设置默认下载器
+# Set default downloader
 export DOWNLOAD__DEFAULT_DOWNLOADER=aria2
 
-# 设置线程数
+# Set number of threads
 export DOWNLOAD__DEFAULT_THREADS=32
 
-# 设置默认URL（优先级高于配置文件中的历史记录）
+# Set default URL (overrides history)
 export DOWNLOAD__DEFAULT_URL="https://www.bilibili.com/bangumi/play/ep123"
 
-# 设置默认下载目录（优先级高于配置文件中的历史记录）
+# Set default directory (overrides history)
 export DOWNLOAD__DEFAULT_DIRECTORY="/path/to/downloads"
 
-# 设置合并后是否清理原始文件
+# Set whether to clean up after merging
 export DOWNLOAD__CLEANUP_AFTER_MERGE=true
 ```
 
-环境变量优先级高于配置文件中的历史记录和默认设置，这使得您可以灵活地为不同的使用场景配置不同的默认值。
+Environment variables take precedence over history records and default settings in the config file.
 
-### .env 文件
+### .env File
 
-复制 `.env.example` 文件为 `.env` 并根据需要修改配置：
+Copy the `.env.example` file to `.env` and modify it as needed:
+
 ```bash
 cp .env.example .env
 ```
 
-### 3. 运行下载命令:
+## 🛠️ Dependencies
 
-#### 交互式下载 (推荐新手)
+### Python Dependencies
 
-```bash
-bili-downloader download
-```
-
-程序会交互式地提示您输入以下信息：
-- 视频 URL (支持番剧主页或单集页面)
-  - 默认值优先级：环境变量 `DOWNLOAD__DEFAULT_URL` > 配置文件历史记录 > 空字符串
-- 下载目录
-  - 默认值优先级：环境变量 `DOWNLOAD__DEFAULT_DIRECTORY` > 配置文件历史记录 > 标准下载目录 (`~/Downloads/bili_downloader`)
-- 关键字过滤（可选，只下载标题包含该关键字的剧集）
-  - 默认值：空字符串
-- 清晰度选择
-  - 默认值优先级：环境变量 `DOWNLOAD__DEFAULT_QUALITY` > 配置文件默认值
-- 下载器选择 (aria2 或 axel)
-  - 默认值优先级：环境变量 `DOWNLOAD__DEFAULT_DOWNLOADER` > 配置文件默认值
-- 是否合并后清理原始文件
-  - 默认值优先级：环境变量 `DOWNLOAD__CLEANUP_AFTER_MERGE` > 配置文件默认值
-
-#### 命令行参数下载 (适合脚本)
-
-```bash
-bili-downloader download \\
-  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
-  --directory "/path/to/download" \\
-  --quality 112 \\
-  --downloader axel \\
-  --cleanup \\
-  --keyword "cli"
-```
-
-#### 启用详细日志
-
-```bash
-bili-downloader download --verbose
-# 或
-bili-downloader download -v
-```
-
-### 4. 快速示例
-
-创建 `cookie.txt` 文件并添加您的B站Cookie，然后运行：
-
-```bash
-# 交互式下载
-bili-downloader download
-
-# 直接下载特定剧集
-bili-downloader download \\
-  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
-  --directory "./downloads" \\
-  --quality 112
-
-# 下载标题包含"战斗"的剧集
-bili-downloader download \\
-  --url "https://www.bilibili.com/bangumi/play/ep836727" \\
-  --directory "./downloads" \\
-  --quality 112 \\
-  --keyword "战斗"
-```
-
-## 支持的 URL 格式
-
-- 番剧主页: `https://www.bilibili.com/bangumi/media/md191`
-- 单集页面: `https://www.bilibili.com/bangumi/play/ep836727`
-
-## 清晰度选项
-
-| 代码 | 描述 |
-|------|------|
-| 6 | 240P 极速 (仅 MP4, 移动端 HTML5 场景) |
-| 16 | 360P 流畅 (默认最低档) |
-| 32 | 480P 清晰 (无需登录) |
-| 64 | 720P 高清 (需登录, Web 端默认值) |
-| 74 | 720P60 高帧率 (需登录) |
-| 80 | 1080P 高清 (需登录, TV/APP 默认值) |
-| 112 | 1080P+ 高码率 (需大会员，默认值) |
-| 116 | 1080P60 高帧率 (需大会员) |
-| 120 | 4K 超清 (需大会员) |
-| 125 | HDR 真彩 (需大会员) |
-| 126 | 杜比视界 (需大会员) |
-| 127 | 8K 超高清 (需大会员) |
-
-## 依赖
-
-### Python 依赖
 - Python 3.11+
 - requests
 - typer[all]
 - rich
 - structlog
 - pydantic[dotenv]
+- pydantic-settings
+- toml
 
-### 外部工具依赖
-- aria2c (可选，用于 aria2 下载器)
-- axel (可选，用于 axel 下载器)
-- ffmpeg (用于合并音视频)
+### External Tools
 
-确保这些工具已安装并在系统 PATH 中可用，或者将它们放在脚本目录中。
+- **FFmpeg**: Required for merging audio and video streams.
+- **Aria2** (optional): For accelerated downloads using the `aria2` downloader.
+- **Axel** (optional): For accelerated downloads using the `axel` downloader.
 
-## 开发
+Ensure these tools are installed and available in your system PATH, or place them in the script's directory.
 
-### 代码格式化和检查
+## 🧪 Development
+
+### Code Formatting and Checking
 
 ```bash
-# 格式化代码
+# Format code
 poetry run black .
 poetry run isort .
 
-# 代码检查
+# Check code
 poetry run ruff check .
 
-# 运行测试
+# Run tests
 poetry run pytest
 ```
 
-### 目录结构
+### Project Structure
 
 ```
 bili_downloader_py/
-├─ .env.example         # 环境变量配置示例
+├─ .env.example
 ├─ .gitignore
 ├─ CHANGELOG.md
-├─ cookie.txt           # B站Cookie文件
+├─ cookie.txt
 ├─ copilot-instructions.md
 ├─ LICENSE
 ├─ poetry.lock
@@ -318,73 +330,66 @@ bili_downloader_py/
 ├─ README.md
 ├─ requirements-dev.txt
 ├─ requirements.txt
-├─ bili_downloader/     # 主包
+├─ bili_downloader/
 │  ├─ __init__.py
-│  ├─ core/             # 纯业务逻辑
-│  │  ├─ bangumi_downloader.py  # 番剧下载核心逻辑
-│  │  ├─ downloader_aria2.py    # aria2 下载器实现
-│  │  ├─ downloader_axel.py     # axel 下载器实现
-│  │  └─ vamerger.py            # 音视频合并器
+│  ├─ core/             # Business logic (no CLI/GUI dependencies)
+│  │  ├─ bangumi_downloader.py
+│  │  ├─ downloader_aria2.py
+│  │  ├─ downloader_axel.py
+│  │  └─ vamerger.py
 │  ├─ cli/              # Typer CLI
 │  │  ├─ __init__.py
-│  │  ├─ main.py        # CLI 入口点
-│  │  └─ cmd_download.py # 下载命令实现
-│  ├─ config/           # 配置管理
+│  │  ├─ main.py
+│  │  └─ cmd_download.py
+│  ├─ config/           # Configuration management
 │  │  ├─ __init__.py
-│  │  └─ settings.py    # 配置模型和管理
-│  ├─ utils/            # 工具模块
-│  │  └─ logger.py      # 日志配置
-│  └─ exceptions.py     # 自定义异常
-├─ docs/                # 文档
-├─ examples/            # 使用示例
-├─ tests/               # 测试
-└─ venv/                # 虚拟环境（如果使用）
+│  │  └─ settings.py
+│  ├─ utils/            # Utility modules
+│  │  └─ logger.py
+│  └─ exceptions.py     # Custom exceptions
+├─ docs/
+├─ examples/
+├─ tests/
+└─ venv/               # Virtual environment (if used)
 ```
 
-### 重构特性
+## ❓ FAQ
 
-1. **模块化 CLI**: 
-   - CLI 命令已拆分为子模块，便于维护和扩展
-   - 支持全局选项如 `--verbose`
+### 1. 412 Precondition Failed Error
 
-2. **增强日志**:
-   - 使用 structlog 实现结构化日志记录
-   - 便于调试和问题追踪
+This error usually occurs due to missing request headers. The program automatically adds the following headers:
+- `User-Agent`: Simulates a browser request.
+- `Referer`: Set to Bilibili's domain.
+- `Accept`: Accepts all content types.
+- `Accept-Language`: Supports English and Chinese.
+- `Accept-Encoding`: Supports compressed formats.
 
-3. **异常处理**:
-   - 定义了自定义异常类，统一错误处理
+If this error persists, check:
+- Is your Cookie valid and not expired?
+- Does the episode require Premium membership?
+- Is your network connection stable?
 
-4. **类型注解**:
-   - 为核心模块添加了类型注解，提高代码可读性和维护性
+### 2. Download Failures
 
-5. **配置管理**:
-   - 使用 Pydantic 进行配置管理，支持配置文件和环境变量
+- Ensure your Cookie is valid.
+- Check your network connection.
+- Verify you have sufficient storage space.
 
-## 常见问题
+### 3. Merge Failures
 
-### 1. 412 Precondition Failed 错误
-这个错误通常是由于缺少必要的请求头造成的。程序现在会自动添加以下请求头：
-- User-Agent: 模拟浏览器请求
-- Referer: 设置为B站域名
-- Accept: 接受所有内容类型
-- Accept-Language: 支持中英文
-- Accept-Encoding: 支持压缩格式
+- Check if FFmpeg is correctly installed.
+- Confirm that both audio and video files are fully downloaded.
 
-如果仍然出现此错误，请检查：
-- Cookie是否有效且未过期
-- 剧集是否需要大会员权限
-- 网络连接是否正常
+### 4. Slow Download Speed
 
-### 2. 下载失败
-- 检查Cookie是否有效
-- 确认网络连接正常
-- 确保有足够存储空间
+- Try increasing the number of threads.
+- Switch downloaders (axel/aria2).
+- Check your network conditions.
 
-### 3. 合并失败
-- 检查ffmpeg是否正确安装
-- 确认音视频文件完整下载
+## 📜 License
 
-### 4. 下载速度慢
-- 尝试增加线程数
-- 更换下载器(axel/aria2)
-- 检查网络状况
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgements
+
+Special thanks to the open-source community and the developers of the libraries used in this project.
