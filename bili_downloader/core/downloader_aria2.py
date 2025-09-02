@@ -47,7 +47,7 @@ if not aria2c_path:
 class DownloaderAria2:
     def __init__(self, url, num, dest, header=None, max_retry=3):
         self.url = url
-        self.num = num
+        self.num = num if num <= 16 else 16
         self.dest = dest
         self.header = header if header is not None else {}
         self.max_retry = max_retry
@@ -69,9 +69,9 @@ class DownloaderAria2:
         cmd = [
             aria2c_path,
             "-x",
-            str(self.num),  # 最大连接数
+            str(self.num),  # 最大连接数 1-16
             "-s",
-            str(self.num),  # 分段数量
+            str(self.num),  # 分段数量 1-*, default 5
             "-k",
             "1M",  # 分段最小大小
             "-o",
