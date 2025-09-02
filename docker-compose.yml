@@ -20,6 +20,23 @@ services:
       - ./config:/app/config
       # .env文件挂载（用于环境变量配置）
       - ./.env:/app/.env:ro
+    # 环境变量配置（从.env文件读取）
+    env_file:
+      - .env
+    environment:
+      # 默认下载器 (axel 或 aria2)
+      - DOWNLOAD__DEFAULT_DOWNLOADER=axel
+      # 默认下载清晰度
+      - DOWNLOAD__DEFAULT_QUALITY=127
+      # 默认下载线程数
+      - DOWNLOAD__DEFAULT_THREADS=16
+      # 合并后是否清理原始文件
+      - DOWNLOAD__CLEANUP_AFTER_MERGE=true
+      # 默认容器内下载目录
+      - DOWNLOAD__DEFAULT_DIRECTORY=/app/downloads
+      # 请求User-Agent
+      - NETWORK__USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
+    # 保持TTY连接
     # 保持TTY连接
     tty: true
     # 保持stdin打开

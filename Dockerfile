@@ -54,7 +54,9 @@ RUN mkdir -p downloads
 ENV DOWNLOAD__DEFAULT_DOWNLOADER=axel \
     DOWNLOAD__DEFAULT_QUALITY=112 \
     DOWNLOAD__DEFAULT_THREADS=16 \
-    NETWORK__USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    DOWNLOAD__CLEANUP_AFTER_MERGE=true \
+    DOWNLOAD__DEFAULT_DIRECTORY=/app/downloads \
+    NETWORK__USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
 
 VOLUME ["/app/downloads"]
 
