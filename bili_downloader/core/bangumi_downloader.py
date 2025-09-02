@@ -434,6 +434,7 @@ class BangumiDownloader:
         headers=None,
         downloader_type=DEFAULT_DOWNLOADER,
         keyword="",
+        threads=16,
     ):
         """根据番剧信息下载所有集数并合并。"""
         if headers is None:
@@ -601,6 +602,7 @@ class BangumiDownloader:
                                 headers=headers,
                                 refurl=refurl,
                                 downloader_type=downloader_type,
+                                num=threads,
                             )
                         except DownloadError as e:
                             logger.error(
@@ -630,6 +632,7 @@ class BangumiDownloader:
                                 headers=headers,
                                 refurl=refurl,
                                 downloader_type=downloader_type,
+                                num=threads,
                             )
                         except DownloadError as e:
                             logger.error(
@@ -680,8 +683,6 @@ class BangumiDownloader:
                                 f.write(line)
                 else:
                     logger.error(f"Failed to merge episode {i+1}.")
-                    raise MergeError(f"Failed to merge episode {i+1}.")
-
                     # Update download list status
                     with open(download_list_path, "r", encoding="utf-8") as f:
                         lines = f.readlines()
@@ -694,6 +695,7 @@ class BangumiDownloader:
                                 f.write(f"{line.strip()} # Status: Merge Failed\n")
                             else:
                                 f.write(line)
+                    raise MergeError(f"Failed to merge episode {i+1}.")
 
             except Exception as e:
                 logger.error(f"Error processing episode {i+1}", error=str(e))
@@ -704,17 +706,3 @@ class BangumiDownloader:
             logger.info(f"  - {file}")
 
         return merged_files
-
-    def download_all_from_info(
-        self,
-        info,
-        destdir,
-        doclean=False,
-        headers=None,
-        downloader_type=DEFAULT_DOWNLOADER,
-        keyword="",
-    ):
-        """根据番剧信息下载所有集数并合并。为了向后兼容，使用默认清晰度。"""
-        return self.download_all_from_info_with_quality(
-            info, destdir, DEFAULT_QN, doclean, headers, downloader_type, keyword
-        )

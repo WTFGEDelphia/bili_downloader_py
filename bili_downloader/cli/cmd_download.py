@@ -186,6 +186,7 @@ def env_bool(key: str, default: bool = False) -> bool:
 def download(
     url: str = typer.Option("", "--url", "-u", help="Video URL to download"),
     directory: str = typer.Option("", "--directory", "-d", help="Download directory"),
+    threads: int = typer.Option(16, "--threads", "-t", help="Download threads"),
     quality: int = typer.Option(0, "--quality", "-q", help="Video quality"),
     cleanup: bool = typer.Option(False, "--cleanup", "-c", help="Clean up after merge"),
     downloader: str = typer.Option(
@@ -234,8 +235,9 @@ def download(
             default_cleanup = env_bool(
                 "DOWNLOAD__CLEANUP_AFTER_MERGE", settings.download.cleanup_after_merge
             )
-            default_threads = os.environ.get(
-                "DOWNLOAD__DEFAULT_THREADS", settings.download.default_threads
+            raw = os.getenv("DOWNLOAD__DEFAULT_THREADS")
+            default_threads = (
+                int(raw) if raw is not None else settings.download.default_threads
             )
             default_downloader = os.environ.get(
                 "DOWNLOAD__DEFAULT_DOWNLOADER", settings.download.default_downloader
@@ -244,6 +246,7 @@ def download(
             doclean = cleanup if cleanup else default_cleanup
             downloader_type = downloader if downloader else default_downloader
             filter_keyword = keyword  # keyword 的默认值是空字符串，符合预期
+            threads = default_threads if default_threads else threads
         else:
             # 否则交互式获取用户输入
             (
@@ -285,6 +288,7 @@ def download(
             settings.network.headers,
             downloader_type,
             filter_keyword,  # Pass keyword filter
+            threads,
         )
         console.print(f"\nDownload completed. Merged {len(merged_files)} files:")
         for file in merged_files:
