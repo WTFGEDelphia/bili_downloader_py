@@ -58,6 +58,8 @@ bili-downloader download
 ```bash
 # 构建镜像
 docker build -t bili-downloader .
+docker build -t bili-downloader:alpine .
+docker build --no-cache -t bili-downloader:alpine .
 
 # 运行交互式下载
 docker run -it --rm \

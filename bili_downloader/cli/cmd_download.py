@@ -34,15 +34,17 @@ def get_cookie():
         "cookie.txt",
         "./cookie.txt",
         # 原始路径
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "cookie.txt"),
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", "..", "cookie.txt"
+        ),
     ]
-    
+
     cookie_file_path = None
     for path in possible_paths:
         if os.path.exists(path):
             cookie_file_path = path
             break
-    
+
     if cookie_file_path:
         try:
             with open(cookie_file_path, "r") as f:
@@ -79,7 +81,9 @@ def get_user_input(settings: Settings):
     )
 
     # 下载目录默认值优先级：环境变量 > 配置文件历史记录 > 标准默认目录
-    default_directory = os.environ.get("DOWNLOAD__DEFAULT_DIRECTORY", settings.history.last_directory)
+    default_directory = os.environ.get(
+        "DOWNLOAD__DEFAULT_DIRECTORY", settings.history.last_directory
+    )
     if not default_directory:
         default_directory = str(Path.home() / "Downloads" / "bili_downloader")
     record_url = Prompt.ask(
@@ -99,7 +103,9 @@ def get_user_input(settings: Settings):
 
     # 显示清晰度选项并获取用户选择
     # 清晰度默认值优先级：环境变量 > 配置文件默认值
-    default_quality = int(os.environ.get("DOWNLOAD__DEFAULT_QUALITY", settings.download.default_quality))
+    default_quality = int(
+        os.environ.get("DOWNLOAD__DEFAULT_QUALITY", settings.download.default_quality)
+    )
     console.print("\nAvailable quality options:")
     for qn, desc in QUALITY_OPTIONS.items():
         default_mark = " (default)" if qn == default_quality else ""
@@ -126,13 +132,13 @@ def get_user_input(settings: Settings):
 
     # 显示下载器选项并获取用户选择
     # 下载器默认值优先级：环境变量 > 配置文件默认值
-    default_downloader = os.environ.get("DOWNLOAD__DEFAULT_DOWNLOADER", settings.download.default_downloader)
+    default_downloader = os.environ.get(
+        "DOWNLOAD__DEFAULT_DOWNLOADER", settings.download.default_downloader
+    )
     available_downloaders = ["axel", "aria2"]
     console.print("Available downloaders:")
     for i, dl in enumerate(available_downloaders, 1):
-        default_mark = (
-            " (default)" if dl == default_downloader else ""
-        )
+        default_mark = " (default)" if dl == default_downloader else ""
         console.print(f"  {i}. {dl}{default_mark}")
 
     while True:
@@ -175,7 +181,10 @@ def download(
         "", "--downloader", "-D", help="Downloader to use (axel or aria2)"
     ),
     keyword: str = typer.Option(
-        "", "--keyword", "-k", help="Keyword to filter episodes (only download if title contains this keyword)"
+        "",
+        "--keyword",
+        "-k",
+        help="Keyword to filter episodes (only download if title contains this keyword)",
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging"
@@ -197,19 +206,30 @@ def download(
         cookie = get_cookie()
 
         # Input
-        if url and directory and quality > 0 and downloader:
-            # 如果所有参数都通过命令行提供，则直接使用
+        # 检查是否通过命令行提供了必要的参数 (url 和 directory)
+        # 如果提供了，则使用命令行参数，并从 settings 或 defaults 获取其他参数的值
+        # 否则，进入交互式模式
+        if url and directory:
+            # 使用命令行参数
             video_url = url
             record_url = directory
-            selected_qn = quality
-            doclean = cleanup
-            downloader_type = downloader
-            filter_keyword = keyword
+            # 对于其他参数，如果命令行未提供，则使用配置文件或默认值
+            selected_qn = quality if quality > 0 else settings.download.default_quality
+            doclean = cleanup if cleanup else settings.download.cleanup_after_merge
+            downloader_type = (
+                downloader if downloader else settings.download.default_downloader
+            )
+            filter_keyword = keyword  # keyword 的默认值是空字符串，符合预期
         else:
             # 否则交互式获取用户输入
-            video_url, record_url, selected_qn, doclean, downloader_type, filter_keyword = (
-                get_user_input(settings)
-            )
+            (
+                video_url,
+                record_url,
+                selected_qn,
+                doclean,
+                downloader_type,
+                filter_keyword,
+            ) = get_user_input(settings)
 
         # 保存历史记录
         if video_url:

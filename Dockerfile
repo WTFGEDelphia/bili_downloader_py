@@ -38,9 +38,6 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# 非 root 用户
-RUN addgroup -g 1000 bili && adduser -D -s /bin/sh -u 1000 -G bili bili
-
 WORKDIR /app
 
 # wheel 安装
@@ -48,10 +45,10 @@ COPY --from=builder /src/dist/*.whl ./
 RUN ls -la *.whl && pip install --no-cache-dir *.whl && rm -f *.whl
 
 # 将业务代码放置镜像（方便热更新）
-COPY --chown=bili:bili bili_downloader ./bili_downloader
+COPY bili_downloader ./bili_downloader
 
 # 创建下载目录并赋权
-RUN mkdir -p /downloads && chown bili:bili /downloads
+RUN mkdir -p downloads
 
 # 默认环境变量
 ENV DOWNLOAD__DEFAULT_DOWNLOADER=axel \
@@ -59,10 +56,7 @@ ENV DOWNLOAD__DEFAULT_DOWNLOADER=axel \
     DOWNLOAD__DEFAULT_THREADS=16 \
     NETWORK__USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 
-VOLUME ["/downloads"]
-
-# 切换到非root用户
-USER bili
+VOLUME ["/app/downloads"]
 
 # 检查脚本是否出现
 RUN which bili-downloader || (echo "CLI binary not found" && exit 1)
