@@ -543,10 +543,43 @@ class BangumiDownloader:
                         )
                     continue
 
-                # 检查音频和视频文件是否都已存在
-                audio_exists = os.path.exists(audio_dest)
-                video_exists = os.path.exists(video_dest)
+                # 检查是否存在未完成的下载文件 (.st 或 .aria2)，如果存在则需要重新下载
+                def has_incomplete_download(file_path):
+                    return os.path.exists(file_path + ".st") or os.path.exists(
+                        file_path + ".aria2"
+                    )
 
+                audio_incomplete = has_incomplete_download(audio_dest)
+                video_incomplete = has_incomplete_download(video_dest)
+
+                # 如果文件存在但下载未完成，删除原文件和未完成的文件
+                if os.path.exists(audio_dest) and audio_incomplete:
+                    logger.info(f"音频文件下载未完成，删除并重新下载: {audio_dest}")
+                    os.remove(audio_dest)
+                    if os.path.exists(audio_dest + ".st"):
+                        os.remove(audio_dest + ".st")
+                    if os.path.exists(audio_dest + ".aria2"):
+                        os.remove(audio_dest + ".aria2")
+                    audio_exists = False
+                elif os.path.exists(audio_dest):
+                    audio_exists = True
+                else:
+                    audio_exists = False
+
+                if os.path.exists(video_dest) and video_incomplete:
+                    logger.info(f"视频文件下载未完成，删除并重新下载: {video_dest}")
+                    os.remove(video_dest)
+                    if os.path.exists(video_dest + ".st"):
+                        os.remove(video_dest + ".st")
+                    if os.path.exists(video_dest + ".aria2"):
+                        os.remove(video_dest + ".aria2")
+                    video_exists = False
+                elif os.path.exists(video_dest):
+                    video_exists = True
+                else:
+                    video_exists = False
+
+                # 检查音频和视频文件是否都已存在
                 if audio_exists and video_exists:
                     logger.info(
                         f"音频和视频文件已存在，跳过下载，直接合并: {episode_title_safe}"

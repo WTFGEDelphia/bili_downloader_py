@@ -29,7 +29,7 @@ services:
       # 默认下载清晰度
       - DOWNLOAD__DEFAULT_QUALITY=127
       # 默认下载线程数
-      - DOWNLOAD__DEFAULT_THREADS=16
+      - DOWNLOAD__DEFAULT_THREADS=64
       # 合并后是否清理原始文件
       - DOWNLOAD__CLEANUP_AFTER_MERGE=true
       # 默认容器内下载目录
