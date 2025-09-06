@@ -15,7 +15,6 @@ def test_sanitize_filename():
     # 直接定义清理函数
     def sanitize_filename(filename):
         """清理文件名，确保在文件系统中有效。"""
-        import re
 
         # 移除不允许的字符
         # Windows不允许的字符: \\ / : * ? " < > |

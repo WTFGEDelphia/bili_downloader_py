@@ -4,6 +4,27 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from bili_downloader.utils.print_utils import print_info, print_warning
+
+
+class LogSettings(BaseModel):
+    """日志设置"""
+
+    enable_file_logging: bool = Field(default=False, description="是否启用文件日志记录")
+    log_file_path: str = Field(
+        default="logs/bili_downloader.log", description="日志文件路径"
+    )
+    log_level: str = Field(
+        default="INFO", description="日志级别 (DEBUG, INFO, WARNING, ERROR)"
+    )
+    max_log_file_size: int = Field(
+        default=10 * 1024 * 1024, description="最大日志文件大小(字节)，默认10MB"
+    )
+    backup_count: int = Field(default=5, description="保留的备份日志文件数量")
+    log_format: str = Field(
+        default="simple", description="日志格式 (json, console, keyvalue, simple)"
+    )
+
 
 class DownloadSettings(BaseModel):
     default_quality: int = Field(default=112, description="默认下载清晰度")
@@ -53,6 +74,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    log: LogSettings = LogSettings()
     download: DownloadSettings = DownloadSettings()
     login: LoginSettings = LoginSettings()
     history: HistorySettings = HistorySettings()
@@ -74,19 +96,83 @@ class Settings(BaseSettings):
         return cls.get_config_dir() / "config.toml"
 
     @classmethod
+    def get_default_config_dir(cls) -> Path:
+        """获取默认配置文件目录"""
+        # Windows: C:\Users\{username}\AppData\Roaming\bili-downloader
+        # macOS: ~/Library/Application Support/bili-downloader
+        # Linux: ~/.config/bili-downloader
+        config_dir = Path.home() / ".config" / "bili-downloader"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        return config_dir
+
+    @classmethod
+    def get_default_config_file(cls) -> Path:
+        """获取默认配置文件路径"""
+        return cls.get_default_config_dir() / "config.toml"
+
+    @classmethod
+    def get_env_config_file_path(cls) -> Path:
+        """
+        获取环境变量中指定的配置文件路径
+
+        Returns:
+            Path: 配置文件路径
+        """
+        # 获取 CACHE__CONFIG_PATH 环境变量指定的配置文件路径
+        config_file_path = os.environ.get("CACHE__CONFIG_PATH")
+        if config_file_path:
+            return Path(config_file_path)
+        else:
+            # 如果未指定，则使用默认配置文件路径
+            return cls.get_default_config_file()
+
+    @classmethod
     def load_from_file(cls) -> "Settings":
-        """从配置文件加载设置"""
-        config_file = cls.get_config_file()
-        if config_file.exists():
+        """
+        按照指定顺序加载配置:
+        1. .env 文件 (如果不存在则复制 .env.example)
+        2. 环境变量中CACHE__CONFIG_PATH的配置文件
+        3. CACHE__CONFIG_PATH的值为空则保持当前逻辑
+        4. .env中所有值为空的 配置文件也为空的 按照用户输入的为准
+        5. 最后所有数据更新到配置文件，下次执行程序 读取仍然按照这个顺序
+
+        Returns:
+            Settings: 配置对象
+        """
+        # 步骤 1: 确保 .env 文件存在
+        env_file_path = Path(".env")
+        if not env_file_path.exists():
+            # 如果 .env 文件不存在，复制 .env.example
+            env_example_path = Path(".env.example")
+            if env_example_path.exists():
+                import shutil
+
+                shutil.copy2(env_example_path, env_file_path)
+                print_info("已从 .env.example 复制生成 .env 文件")
+
+        # 步骤 2: 加载 .env 文件中的环境变量
+        if env_file_path.exists():
+            from dotenv import load_dotenv
+
+            load_dotenv(env_file_path, override=True)
+            print_info(f"已加载 .env 文件: {env_file_path}")
+
+        # 步骤 3: 获取环境变量中指定的配置文件路径
+        config_file_path = cls.get_env_config_file_path()
+        print_info(f"配置文件路径: {config_file_path}")
+
+        # 步骤 4: 从指定的配置文件加载设置
+        if config_file_path.exists():
             # 如果配置文件存在，从文件加载
-            # 使用配置文件作为 overrides，而不是完全替换默认值
             import toml
 
-            with open(config_file, "r", encoding="utf-8") as f:
+            with open(config_file_path, encoding="utf-8") as f:
                 config_data = toml.load(f)
 
             # 创建实例并应用配置文件中的设置
             settings = cls()
+            if "log" in config_data:
+                settings.log = LogSettings(**config_data["log"])
             if "download" in config_data:
                 settings.download = DownloadSettings(**config_data["download"])
             if "login" in config_data:
@@ -95,24 +181,39 @@ class Settings(BaseSettings):
                 settings.history = HistorySettings(**config_data["history"])
             if "network" in config_data:
                 settings.network = NetworkSettings(**config_data["network"])
+
+            print_info(f"已从配置文件加载设置: {config_file_path}")
             return settings
         else:
-            # 如果配置文件不存在，使用默认设置并保存
+            # 如果配置文件不存在，使用默认设置并保存到指定位置
             settings = cls()
-            settings.save_to_file()
+            # 确保配置文件目录存在
+            config_file_path.parent.mkdir(parents=True, exist_ok=True)
+            settings.save_to_file(str(config_file_path))
+            print_info(f"已创建默认配置文件: {config_file_path}")
             return settings
 
-    def save_to_file(self) -> None:
-        """保存配置到文件"""
+    def save_to_file(self, config_file_path: str = None) -> None:
+        """
+        保存配置到文件
+
+        Args:
+            config_file_path: 配置文件路径，如果为None则使用默认路径
+        """
         try:
             import toml
 
-            config_file = self.get_config_file()
+            if config_file_path is None:
+                config_file = self.get_env_config_file_path()
+            else:
+                config_file = Path(config_file_path)
+
             # 确保配置目录存在
             config_file.parent.mkdir(parents=True, exist_ok=True)
 
             # 转换为字典并保存
             config_dict = {
+                "log": self.log.model_dump(),
                 "download": self.download.model_dump(),
                 "login": self.login.model_dump(),
                 "history": self.history.model_dump(),
@@ -121,6 +222,8 @@ class Settings(BaseSettings):
 
             with open(config_file, "w", encoding="utf-8") as f:
                 toml.dump(config_dict, f)
+
+            print_info(f"配置已保存到: {config_file}")
         except Exception as e:
             # 如果保存失败，不抛出异常，但记录日志
-            print(f"Warning: Could not save config to file: {e}")
+            print_warning(f"无法将配置保存到文件: {e}")

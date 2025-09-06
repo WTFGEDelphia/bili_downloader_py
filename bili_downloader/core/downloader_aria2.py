@@ -3,33 +3,34 @@ import shutil
 import subprocess
 
 from bili_downloader.utils.logger import logger
+from bili_downloader.utils.print_utils import print_warning
 
 
 def find_executable(name):
     """在预定义路径或系统 PATH 中查找可执行文件。"""
-    # 1. Check environment variable first (e.g., ARIA2C_PATH)
+    # 1. 首先检查环境变量 (例如, ARIA2C_PATH)
     env_var_name = f"{name.upper()}_PATH"
     env_path = os.environ.get(env_var_name)
     if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
         return env_path
 
-    # 2. Check in the same directory as this script
+    # 2. 检查脚本同目录下
     script_dir = os.path.dirname(os.path.abspath(__file__))
     exe_path = os.path.join(script_dir, name)
     if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
         return exe_path
 
-    # 3. Check with .exe extension (for Windows)
+    # 3. 检查.exe扩展名 (适用于Windows)
     exe_path_exe = exe_path + ".exe"
     if os.path.isfile(exe_path_exe) and os.access(exe_path_exe, os.X_OK):
         return exe_path_exe
 
-    # 4. Check in system PATH
+    # 4. 检查系统PATH
     system_path = shutil.which(name)
     if system_path:
         return system_path
 
-    # 5. Check with .exe extension in system PATH (for Windows)
+    # 5. 检查系统PATH中的.exe扩展名 (适用于Windows)
     system_path_exe = shutil.which(f"{name}.exe")
     if system_path_exe:
         return system_path_exe
@@ -37,11 +38,11 @@ def find_executable(name):
     return None
 
 
-# Find aria2c executable
+# 查找aria2c可执行文件
 aria2c_path = find_executable("aria2c")
 if not aria2c_path:
     aria2c_path = None
-    print("Warning: aria2c executable not found. aria2 downloader will not work.")
+    print_warning("未找到aria2c可执行文件。aria2下载器将无法工作。")
 
 
 class DownloaderAria2:
@@ -59,10 +60,10 @@ class DownloaderAria2:
         """
         # 确保下载器可用
         if aria2c_path is None:
-            logger.error("Aria2c executable not found. Cannot download file.")
+            logger.error("未找到Aria2c可执行文件。无法下载文件。")
             return False
 
-        # Ensure destination directory exists
+        # 确保目标目录存在
         os.makedirs(os.path.dirname(self.dest), exist_ok=True)
 
         # 构建 aria2c 命令参数列表
@@ -88,18 +89,18 @@ class DownloaderAria2:
             "--max-tries=0",  # 无限重试直到成功
         ]
 
-        # Add headers
+        # 添加请求头
         for key, value in self.header.items():
             # 特殊处理 User-Agent 和 Referer
             if key.lower() == "user-agent":
-                # Ensure the header value is properly formatted
+                # 确保请求头值正确格式化
                 if isinstance(value, str):
                     escaped_value = value.replace('"', '"').replace("'", "'")
                     cmd.extend(["-U", escaped_value])
                 else:
                     cmd.extend(["-U", str(value)])
             elif key.lower() == "referer":
-                # Ensure the header value is properly formatted
+                # 确保请求头值正确格式化
                 if isinstance(value, str):
                     escaped_value = value.replace('"', '"').replace("'", "'")
                     cmd.extend(["--referer", escaped_value])
@@ -107,21 +108,21 @@ class DownloaderAria2:
                     cmd.extend(["--referer", str(value)])
             else:
                 # 其他头部信息使用 --header 选项
-                # Ensure the header value is properly formatted
+                # 确保请求头值正确格式化
                 if isinstance(value, str):
                     escaped_value = value.replace('"', '"').replace("'", "'")
                     cmd.extend(["--header", f"{key}: {escaped_value}"])
                 else:
                     cmd.extend(["--header", f"{key}: {value}"])
 
-        # Add URL
+        # 添加URL
         cmd.append(self.url)
 
-        logger.info("Executing download command", command=" ".join(cmd))
+        logger.info("正在执行下载命令", command=" ".join(cmd))
 
         for attempt in range(1, self.max_retry + 1):
             try:
-                # Use subprocess.run to execute the command
+                # 使用 subprocess.run 执行命令
                 result = subprocess.run(
                     cmd,
                     stdout=subprocess.PIPE,
@@ -135,25 +136,25 @@ class DownloaderAria2:
                     return True
                 else:
                     logger.warning(
-                        f"Attempt {attempt} failed for {self.url}. Return code: {result.returncode}",
+                        f"尝试 {attempt} 失败，URL: {self.url}。返回码: {result.returncode}",
                         stdout=result.stdout,
                         stderr=result.stderr,
                     )
-                    # Don't break yet, will retry if attempts left
+                    # 不立即退出，如果还有重试次数则继续
 
             except subprocess.SubprocessError as e:
                 logger.error(
-                    f"Attempt {attempt} failed for {self.url} with SubprocessError",
+                    f"尝试 {attempt} 失败，URL: {self.url}，子进程错误",
                     error=str(e),
                 )
             except Exception as e:
                 logger.error(
-                    f"Attempt {attempt} failed for {self.url} with unexpected error",
+                    f"尝试 {attempt} 失败，URL: {self.url}，意外错误",
                     error=str(e),
                 )
 
             if attempt < self.max_retry:
-                logger.info(f"Retrying... ({attempt}/{self.max_retry})")
+                logger.info(f"正在重试... ({attempt}/{self.max_retry})")
             else:
-                logger.error(f"All {self.max_retry} attempts failed for {self.url}.")
+                logger.error(f"所有 {self.max_retry} 次尝试均已失败，URL: {self.url}.")
         return False

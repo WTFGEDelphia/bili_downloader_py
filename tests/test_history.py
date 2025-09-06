@@ -22,7 +22,7 @@ def test_history_settings():
         original_get_config_dir = Settings.get_config_dir
 
         # 临时修改配置目录
-        Settings.get_config_dir = lambda: Path(temp_dir) / "config"
+        Settings.get_config_dir = classmethod(lambda cls: Path(temp_dir) / "config")
 
         try:
             print("1. Testing Settings.load_from_file()...")
@@ -42,7 +42,7 @@ def test_history_settings():
             print(f"   Config file created at: {config_file}")
             if config_file.exists():
                 print("   Config file exists!")
-                with open(config_file, "r", encoding="utf-8") as f:
+                with open(config_file, encoding="utf-8") as f:
                     content = f.read()
                     print("   Config file content:")
                     print(content)

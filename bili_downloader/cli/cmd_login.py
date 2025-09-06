@@ -1,24 +1,13 @@
 import os
-from pathlib import Path
 
 import typer
 
+from bili_downloader.cli.global_config import env_bool
 from bili_downloader.config.settings import Settings
-from bili_downloader.core.qrcode_login import QRCodeLogin
-from bili_downloader.utils.logger import configure_logger, logger
+from bili_downloader.utils.logger import logger
+from bili_downloader.utils.print_utils import print_message
 
 app = typer.Typer()
-
-
-def env_bool(key: str, default: bool = False) -> bool:
-    """把环境变量 key 解析为 bool；未设置或空串返回 default。"""
-    val = os.environ.get(key, "").strip().lower()
-    if val in {"1", "true", "yes", "on"}:
-        return True
-    if val in {"0", "false", "no", "off", ""}:
-        return False
-    # 如果值既不是上面任何一项，就按 Python 的 bool 语义兜底
-    return bool(val)
 
 
 @app.command()
@@ -27,45 +16,36 @@ def login(
         "",
         "--method",
         "-m",
-        help="Login method (qr for QR code scan, web for browser login)",
+        help="登录方法 (qr为二维码扫描, web为浏览器登录)",
     ),
-    output: str = typer.Option(
-        "", "--output", "-o", help="Output file path for cookie"
-    ),
-    timeout: int = typer.Option(
-        0, "--timeout", "-t", help="QR code login timeout in seconds"
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose logging"
-    ),
+    output: str = typer.Option("", "--output", "-o", help="Cookie输出文件路径"),
+    timeout: int = typer.Option(0, "--timeout", "-t", help="二维码登录超时时间(秒)"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="启用详细日志"),
 ):
     """
-    Login to Bilibili using QR code scan or web browser
+    使用二维码扫描或网页浏览器登录Bilibili
 
-    This command provides two methods to log in to Bilibili:
+    此命令提供两种登录Bilibili的方法:
 
-    1. QR code scan (default): Generates a QR code that you can scan with your Bilibili mobile app
-    2. Web browser: Opens the Bilibili login page in your default browser for manual login
+    1. 二维码扫描 (默认): 生成一个二维码，您可以使用Bilibili手机应用扫描
+    2. 网页浏览器: 在默认浏览器中打开Bilibili登录页面进行手动登录
 
-    After logging in, the cookie will be saved to a file for use with the download command.
+    登录后，Cookie将保存到文件中，供下载命令使用。
     """
-    # Configure logger
-    configure_logger(verbose)
-
     try:
-        # Load settings from file or create default
+        # 从文件加载设置或创建默认设置
         settings = Settings.load_from_file()
 
-        # Determine method with environment variable and default fallback
-        # Method default value priority: command line > environment variable > config file default > "qr"
+        # 确定方法，优先级：命令行 > 环境变量 > 配置文件默认值 > "qr"
+        # 方法默认值优先级：命令行 > 环境变量 > 配置文件默认值 > "qr"
         default_method = os.environ.get("LOGIN__DEFAULT_METHOD", "qr")
         login_method = method if method else default_method
 
-        # Output file default value priority: command line > environment variable > config file history > "cookie.txt"
+        # 输出文件默认值优先级：命令行 > 环境变量 > 配置文件历史记录 > "cookie.txt"
         default_output = os.environ.get("LOGIN__DEFAULT_OUTPUT", "cookie.txt")
         output_file = output if output else default_output
 
-        # Timeout default value priority: command line > environment variable > config file default > 180
+        # 超时默认值优先级：命令行 > 环境变量 > 配置文件默认值 > 180
         default_timeout = int(os.environ.get("LOGIN__DEFAULT_TIMEOUT", "180"))
         timeout_value = timeout if timeout > 0 else default_timeout
 
@@ -76,40 +56,38 @@ def login(
             timeout=timeout_value,
         )
 
-        # Create QR code login instance
+        # 创建二维码登录实例
+        from bili_downloader.core.qrcode_login import QRCodeLogin
+
         qr_login = QRCodeLogin()
 
-        # Perform login based on method
+        # 根据方法执行登录
         if login_method.lower() == "qr":
-            # QR code login
+            # 二维码登录
             cookie = qr_login.login_with_qr_code(timeout=timeout_value)
         elif login_method.lower() == "web":
-            # Web browser login
+            # 网页浏览器登录
             cookie = qr_login.login_with_browser()
             if cookie == "MANUAL_LOGIN_REQUIRED":
-                # For web login, user needs to manually provide cookie
-                print(
-                    "\nPlease enter your Bilibili cookie (obtained from browser developer tools):"
-                )
+                # 对于网页登录，用户需要手动提供cookie
+                print_message("\n请输入您的Bilibili cookie (从浏览器开发者工具获取):")
                 cookie = input().strip()
         else:
-            raise ValueError(
-                f"Unknown login method: {login_method}. Use 'qr' or 'web'."
-            )
+            raise ValueError(f"未知登录方法: {login_method}。请使用 'qr' 或 'web'。")
 
-        # Save cookie to file
+        # 保存Cookie到文件
         qr_login.save_cookie_to_file(cookie, output_file)
 
-        logger.info("Login successful and cookie saved")
-        print(f"\nLogin successful! Cookie saved to {output_file}")
-        print("You can now use the download command with this cookie.")
+        logger.info("登录成功，Cookie已保存")
+        print_message(f"\n登录成功! Cookie已保存到 {output_file}")
+        print_message("您现在可以使用此Cookie的下载命令了。")
 
     except KeyboardInterrupt:
-        logger.info("Login process interrupted by user")
-        print("\nLogin process interrupted by user.")
+        logger.info("用户中断了登录过程")
+        print_message("\n登录过程被用户中断。")
     except Exception as e:
-        logger.error("Login failed", error=str(e))
-        print(f"\nLogin failed: {e}")
+        logger.error("登录失败", error=str(e))
+        print_message(f"\n登录失败: {e}")
         raise typer.Exit(code=1)
 
 

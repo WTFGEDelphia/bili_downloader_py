@@ -1,8 +1,24 @@
-[bili-downloader.download]
+[download]
 default_quality = 112
 default_downloader = "axel"
 default_threads = 16
 cleanup_after_merge = false
 
-[bili-downloader.network]
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+[login]
+default_method = "qr"
+default_output = "cookie.txt"
+default_timeout = 180
+
+[history]
+last_url = "https://www.bilibili.com/bangumi/play/ep1231567"
+last_directory = "/Users/wtf/Movies/bili_downloader/凡人"
+
+[network]
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
+
+[log]
+enable_file_logging = true
+log_file_path = "logs/bili_downloader.log"
+log_level = "INFO"
+max_log_file_size = 10485760
+backup_count = 5

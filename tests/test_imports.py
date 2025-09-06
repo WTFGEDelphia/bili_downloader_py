@@ -6,7 +6,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     print("Testing CLI import...")
-    from bili_downloader.cli.cmd_download import get_cookie, get_user_input
 
     print("CLI modules imported successfully!")
 

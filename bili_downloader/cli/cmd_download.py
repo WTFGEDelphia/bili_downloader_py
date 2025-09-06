@@ -5,6 +5,7 @@ import typer
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
+from bili_downloader.cli.global_config import env_bool, get_cookie_from_file
 from bili_downloader.config.settings import Settings
 from bili_downloader.core.bangumi_downloader import (
     QUALITY_OPTIONS,
@@ -16,65 +17,21 @@ from bili_downloader.exceptions import (
     DownloadError,
     MergeError,
 )
-from bili_downloader.utils.logger import configure_logger, logger
+from bili_downloader.utils.logger import logger
 
 app = typer.Typer()
 console = Console()
 
 
-def get_cookie():
-    """尝试从文件读取 Cookie，如果失败则提示用户输入。"""
-    cookie = ""
-    # 定义多个可能的cookie文件路径
-    possible_paths = [
-        # Docker环境中的挂载路径
-        "/app/cookie.txt",
-        "/config/cookie.txt",
-        # 项目根目录（相对于当前工作目录）
-        "cookie.txt",
-        "./cookie.txt",
-        # 原始路径
-        os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "..", "cookie.txt"
-        ),
-    ]
-
-    cookie_file_path = None
-    for path in possible_paths:
-        if os.path.exists(path):
-            cookie_file_path = path
-            break
-
-    if cookie_file_path:
-        try:
-            with open(cookie_file_path, "r") as f:
-                cookie = f.read().strip()
-            console.print(f"Info: Cookie loaded from {cookie_file_path}")
-        except Exception as e:
-            console.print(
-                f"Warning: Could not read cookie from {cookie_file_path}: {e}"
-            )
-            console.print("Please paste your cookie when prompted.")
-    else:
-        console.print("Info: Cookie file not found in any of the expected locations:")
-        for path in possible_paths:
-            console.print(f"  - {path}")
-        console.print("Please paste your cookie when prompted.")
-
-    if not cookie:
-        cookie = Prompt.ask("Please paste your Bilibili cookie").strip()
-        if not cookie:
-            console.print("[red]Error: Cookie is required.[/red]")
-            raise typer.Exit(code=1)
-
-    return BangumiDownloader({}, {}).convert_cookie_to_dict(cookie)
-
-
+# 移除了get_cookie函数，使用全局配置模块提供的get_cookie_from_file函数
 def get_user_input(settings: Settings):
     """获取用户输入的 URL、下载目录、清晰度选项、清理选项和下载器类型。"""
     # 从用户获取输入，如果直接回车则使用默认值
     # URL默认值优先级：环境变量 > 配置文件历史记录 > 空字符串
-    default_url = os.environ.get("DOWNLOAD__DEFAULT_URL", settings.history.last_url)
+    default_url = os.environ.get("DOWNLOAD__DEFAULT_URL")
+    # 如果环境变量未设置或为空，则使用配置文件中的历史URL
+    if not default_url:
+        default_url = settings.history.last_url
     video_url = Prompt.ask(
         "Enter Video URL",
         default=default_url if default_url else "",
@@ -113,7 +70,7 @@ def get_user_input(settings: Settings):
 
     while True:
         quality_choice = Prompt.ask(
-            f"\nSelect quality (enter number)",
+            "\nSelect quality (enter number)",
             default=str(default_quality),
         ).strip()
         if not quality_choice:
@@ -125,7 +82,7 @@ def get_user_input(settings: Settings):
                 break
             else:
                 console.print(
-                    f"Please enter a valid quality number from the options above."
+                    "Please enter a valid quality number from the options above."
                 )
         except ValueError:
             console.print("Please enter a valid number.")
@@ -171,51 +128,54 @@ def get_user_input(settings: Settings):
     return video_url, record_url, selected_qn, doclean, downloader_type, keyword
 
 
-def env_bool(key: str, default: bool = False) -> bool:
-    """把环境变量 key 解析为 bool；未设置或空串返回 default。"""
-    val = os.environ.get(key, "").strip().lower()
-    if val in {"1", "true", "yes", "on"}:
-        return True
-    if val in {"0", "false", "no", "off", ""}:
-        return False
-    # 如果值既不是上面任何一项，就按 Python 的 bool 语义兜底
-    return bool(val)
-
-
 @app.command()
 def download(
-    url: str = typer.Option("", "--url", "-u", help="Video URL to download"),
-    directory: str = typer.Option("", "--directory", "-d", help="Download directory"),
-    threads: int = typer.Option(16, "--threads", "-t", help="Download threads"),
-    quality: int = typer.Option(0, "--quality", "-q", help="Video quality"),
-    cleanup: bool = typer.Option(False, "--cleanup", "-c", help="Clean up after merge"),
+    url: str = typer.Option("", "--url", "-u", help="视频URL下载"),
+    directory: str = typer.Option("", "--directory", "-d", help="下载目录"),
+    threads: int = typer.Option(16, "--threads", "-t", help="下载线程数"),
+    quality: int = typer.Option(0, "--quality", "-q", help="视频清晰度"),
+    cleanup: bool = typer.Option(False, "--cleanup", "-c", help="合并后清理"),
     downloader: str = typer.Option(
-        "", "--downloader", "-D", help="Downloader to use (axel or aria2)"
+        "", "--downloader", "-D", help="使用的下载器 (axel 或 aria2)"
     ),
     keyword: str = typer.Option(
         "",
         "--keyword",
         "-k",
-        help="Keyword to filter episodes (only download if title contains this keyword)",
+        help="关键字过滤剧集 (仅下载标题包含此关键字的剧集)",
     ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose logging"
-    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="启用详细日志"),
 ):
     """
     下载哔哩哔哩番剧
 
     从指定的 URL 下载哔哩哔哩番剧视频，并保存到指定目录。
     """
-    # Configure logger
-    configure_logger(verbose)
-
     try:
-        # Load settings from file or create default
-        settings = Settings.load_from_file()
+        # Load settings from global config
+        from bili_downloader.cli.global_config import _global_cli_args
+
+        settings = _global_cli_args.get("settings")
+        if not settings:
+            # Fallback to loading from file if global config is not available
+            settings = Settings.load_from_file()
 
         # Cookie
-        cookie = get_cookie()
+        cookie_dict = get_cookie_from_file()
+        # 如果cookie_dict为空，提示用户输入
+        if not cookie_dict:
+            cookie_str = Prompt.ask("请粘贴您的Bilibili cookie").strip()
+            if not cookie_str:
+                console.print("[red]错误: 需要Cookie。[/red]")
+                raise typer.Exit(code=1)
+            # 将cookie字符串转换为字典
+            cookie_dict = dict(
+                item.split("=", 1) for item in cookie_str.split("; ") if "=" in item
+            )
+
+        cookie = BangumiDownloader({}, {}).convert_cookie_to_dict(
+            "; ".join([f"{k}={v}" for k, v in cookie_dict.items()])
+        )
 
         # Input
         # 检查是否通过命令行提供了必要的参数 (url 和 directory)
@@ -266,15 +226,15 @@ def download(
         settings.save_to_file()
 
         console.print(
-            f"Downloading from {video_url} to {directory} with quality {selected_qn} using {downloader_type}"
+            f"正在从 {video_url} 下载到 {directory}，清晰度 {selected_qn}，使用 {downloader_type}"
         )
         if filter_keyword:
-            console.print(f"Filtering episodes with keyword: {filter_keyword}")
+            console.print(f"使用关键字过滤剧集: {filter_keyword}")
 
         # Create downloader instance
         downloader_instance = BangumiDownloader(cookie)
-        console.print(f"begin to get detail info")
-        # Download with default headers
+        console.print("开始获取详细信息")
+        # 使用默认头部下载
         info = downloader_instance.get_detailed_info_from_url(
             video_url, settings.network.headers
         )
@@ -295,27 +255,27 @@ def download(
             console.print(f"  - {file}")
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]Download interrupted by user.[/yellow]")
+        console.print("\n[yellow]下载被用户中断。[/yellow]")
         logger.info("Download interrupted by user")
         raise typer.Exit(code=1)
     except APIError as e:
-        console.print(f"[red]API Error: {e}[/red]")
+        console.print(f"[red]API错误: {e}[/red]")
         logger.error("API Error", error=str(e))
         raise typer.Exit(code=1)
     except DownloadError as e:
-        console.print(f"[red]Download Error: {e}[/red]")
+        console.print(f"[red]下载错误: {e}[/red]")
         logger.error("Download Error", error=str(e))
         raise typer.Exit(code=1)
     except MergeError as e:
-        console.print(f"[red]Merge Error: {e}[/red]")
+        console.print(f"[red]合并错误: {e}[/red]")
         logger.error("Merge Error", error=str(e))
         raise typer.Exit(code=1)
     except BiliDownloaderError as e:
-        console.print(f"[red]BiliDownloader Error: {e}[/red]")
+        console.print(f"[red]BiliDownloader错误: {e}[/red]")
         logger.error("BiliDownloader Error", error=str(e))
         raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]An unexpected error occurred: {e}[/red]")
+        console.print(f"[red]发生未预期的错误: {e}[/red]")
         logger.error("An unexpected error occurred", error=str(e))
         raise typer.Exit(code=1)
 

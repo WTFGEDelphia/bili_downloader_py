@@ -1,4 +1,3 @@
-import os
 import tempfile
 from pathlib import Path
 
@@ -28,7 +27,7 @@ try:
             print(f"Config file created at: {config_file}")
             if config_file.exists():
                 print("Config file exists!")
-                with open(config_file, "r", encoding="utf-8") as f:
+                with open(config_file, encoding="utf-8") as f:
                     content = f.read()
                     print("Config file content:")
                     print(content)

@@ -219,6 +219,48 @@ bili-downloader download --verbose
 bili-downloader download -v
 ```
 
+#### 启用文件日志
+
+要将日志同时输出到控制台和文件，可以使用 `--log-to-file` 选项：
+
+```bash
+bili-downloader --log-to-file download
+# 或者简写
+bili-downloader -l download
+```
+
+#### 日志格式选项
+
+支持多种日志格式，可以通过 `--log-format` 或 `-f` 选项指定：
+
+```bash
+# JSON格式（默认）
+bili-downloader --log-to-file --log-format json download
+
+# 控制台格式（带颜色）
+bili-downloader --log-to-file --log-format console download
+
+# 键值对格式
+bili-downloader --log-to-file --log-format keyvalue download
+
+# 简单文本格式
+bili-downloader --log-to-file --log-format simple download
+```
+
+默认情况下，日志文件保存在 `logs/bili_downloader.log`。您可以在配置文件中自定义文件路径和其他日志设置：
+
+```toml
+[log]
+enable_file_logging = true
+log_file_path = "logs/bili_downloader.log"
+log_level = "INFO"
+log_format = "json"  # 支持: json, console, keyvalue, simple
+max_log_file_size = 10485760  # 10MB
+backup_count = 5
+```
+
+更多信息请参见 [日志格式详细说明](LOG_FORMATS.md)。
+
 ### 3. 快速示例
 
 创建 `cookie.txt` 文件后，您可以运行：
@@ -402,6 +444,9 @@ bili-downloader login
 
 # 下载命令 - 下载番剧视频
 bili-downloader download
+
+# 搜索命令 - 搜索Bilibili内容
+bili-downloader search
 ```
 
 每个命令都有详细的帮助信息，可以通过 `--help` 参数查看：
@@ -410,6 +455,7 @@ bili-downloader download
 bili-downloader --help
 bili-downloader login --help
 bili-downloader download --help
+bili-downloader search --help
 ```
 
 ### 项目结构
@@ -435,12 +481,14 @@ bili_downloader_py/
 │  │  ├─ downloader_aria2.py
 │  │  ├─ downloader_axel.py
 │  │  ├─ qrcode_login.py
+│  │  ├─ search.py
 │  │  └─ vamerger.py
 │  ├─ cli/              # Typer CLI
 │  │  ├─ __init__.py
 │  │  ├─ main.py
 │  │  ├─ cmd_download.py
-│  │  └─ cmd_login.py
+│  │  ├─ cmd_login.py
+│  │  └─ cmd_search.py
 │  ├─ config/           # 配置管理
 │  │  ├─ __init__.py
 │  │  └─ settings.py

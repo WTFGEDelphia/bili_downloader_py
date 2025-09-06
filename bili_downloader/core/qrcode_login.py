@@ -1,16 +1,15 @@
 import json
 import time
 import webbrowser
-from typing import Optional, Tuple
-from urllib.parse import urlparse
 
 import requests
 
 from bili_downloader.utils.logger import logger
+from bili_downloader.utils.print_utils import print_message
 
 
 class QRCodeLogin:
-    """Bilibili QR Code Login Class"""
+    """Bilibili 二维码登录类"""
 
     def __init__(self):
         self.session = requests.Session()
@@ -21,12 +20,12 @@ class QRCodeLogin:
             }
         )
 
-    def generate_qr_code(self) -> Tuple[str, str]:
+    def generate_qr_code(self) -> tuple[str, str]:
         """
-        Generate QR code for login
+        生成登录二维码
 
         Returns:
-            Tuple[str, str]: (qr_url, qrcode_key)
+            Tuple[str, str]: (二维码URL, 二维码key)
         """
         url = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
 
@@ -42,7 +41,7 @@ class QRCodeLogin:
                 return qr_url, qrcode_key
             else:
                 logger.error(
-                    "Failed to generate QR code",
+                    "生成二维码失败",
                     code=data.get("code"),
                     message=data.get("message"),
                 )
@@ -50,17 +49,17 @@ class QRCodeLogin:
 
         except requests.RequestException as e:
             logger.error("Network error when generating QR code", error=str(e))
-            raise Exception(f"Network error when generating QR code: {e}")
+            raise Exception(f"生成二维码时网络错误: {e}")
         except json.JSONDecodeError as e:
             logger.error("Failed to parse QR code response", error=str(e))
-            raise Exception(f"Failed to parse QR code response: {e}")
+            raise Exception(f"解析二维码响应失败: {e}")
 
     def display_qr_code(self, qr_url: str) -> None:
         """
-        Display QR code in terminal using qrcode library
+        在终端中使用qrcode库显示二维码
 
         Args:
-            qr_url (str): The QR code URL to display
+            qr_url (str): 要显示的二维码URL
         """
         try:
             import sys
@@ -68,7 +67,7 @@ class QRCodeLogin:
 
             import qrcode
 
-            # Create QR code instance
+            # 创建二维码实例
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -76,31 +75,31 @@ class QRCodeLogin:
                 border=1,
             )
 
-            # Add data and make QR code
+            # 添加数据并生成二维码
             qr.add_data(qr_url)
             qr.make(fit=True)
 
-            # Print QR code to terminal
+            # 在终端中打印二维码
             qr.print_ascii(out=sys.stdout, invert=True)
 
         except ImportError:
-            # If qrcode library is not available, just print the URL
-            print(f"QR Code URL: {qr_url}")
-            print("Please visit this URL or scan it with your Bilibili mobile app")
+            # 如果qrcode库不可用，则只打印URL
+            print_message(f"二维码URL: {qr_url}")
+            print_message("请访问此URL或使用哔哩哔哩手机应用扫描")
         except Exception as e:
-            logger.warning("Failed to generate QR code display", error=str(e))
-            print(f"QR Code URL: {qr_url}")
-            print("Please visit this URL or scan it with your Bilibili mobile app")
+            logger.warning("Failed to display QR code", error=str(e))
+            print_message(f"二维码URL: {qr_url}")
+            print_message("请访问此URL或使用哔哩哔哩手机应用扫描")
 
-    def poll_qr_login(self, qrcode_key: str) -> Optional[str]:
+    def poll_qr_login(self, qrcode_key: str) -> str | None:
         """
-        Poll for QR code login status
+        轮询二维码登录状态
 
         Args:
-            qrcode_key (str): The QR code key
+            qrcode_key (str): 二维码key
 
         Returns:
-            Optional[str]: Cookie string if login successful, None otherwise
+            Optional[str]: 登录成功时返回Cookie字符串，否则返回None
         """
         url = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
         params = {"qrcode_key": qrcode_key}
@@ -123,8 +122,8 @@ class QRCodeLogin:
                 return None
             elif code == 86038:
                 # QR code expired
-                logger.error("QR code expired")
-                raise Exception("QR code expired, please try again")
+                logger.error("QR code has expired")
+                raise Exception("二维码已过期，请重试")
             elif code == 0:
                 # Login successful
                 logger.info("Login successful")
@@ -136,36 +135,36 @@ class QRCodeLogin:
                 return cookie_str
             else:
                 logger.error("Unknown login status", code=code, message=message)
-                raise Exception(f"Unknown login status: {code} - {message}")
+                raise Exception(f"未知登录状态: {code} - {message}")
 
         except requests.RequestException as e:
             logger.error("Network error when polling QR login", error=str(e))
-            raise Exception(f"Network error when polling QR login: {e}")
+            raise Exception(f"轮询二维码登录时网络错误: {e}")
         except json.JSONDecodeError as e:
             logger.error("Failed to parse QR login response", error=str(e))
-            raise Exception(f"Failed to parse QR login response: {e}")
+            raise Exception(f"解析二维码登录响应失败: {e}")
 
     def login_with_qr_code(self, timeout: int = 180) -> str:
         """
-        Login with QR code
+        使用二维码登录
 
         Args:
-            timeout (int): Timeout in seconds (default: 180)
+            timeout (int): 超时时间(秒) (默认: 180)
 
         Returns:
-            str: Cookie string
+            str: Cookie字符串
         """
-        # Generate QR code
+        # 生成二维码
         qr_url, qrcode_key = self.generate_qr_code()
 
-        # Display QR code in terminal
-        print("Please scan the following QR code with your Bilibili mobile app:")
+        # 在终端中显示二维码
+        print_message("请使用哔哩哔哩手机应用扫描以下二维码：")
         self.display_qr_code(qr_url)
-        print("\nIf you can't scan the QR code, please visit this URL manually:")
-        print(f"{qr_url}")
-        print("\nWaiting for scan and confirmation on your mobile device...")
+        print_message("\n如果您无法扫描二维码，请手动访问以下URL：")
+        print_message(f"{qr_url}")
+        print_message("\n等待您在移动设备上扫描和确认...")
 
-        # Poll for login status
+        # 轮询登录状态
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
@@ -174,96 +173,90 @@ class QRCodeLogin:
                     return cookie
             except Exception as e:
                 if "expired" in str(e).lower():
-                    # QR code expired, generate a new one
-                    print("\nQR code expired, generating a new one...")
+                    # 二维码已过期，生成新的
+                    print_message("\n二维码已过期，正在生成新的二维码...")
                     qr_url, qrcode_key = self.generate_qr_code()
-                    print("Please scan the new QR code with your Bilibili mobile app:")
+                    print_message("请使用哔哩哔哩手机应用扫描新的二维码：")
                     self.display_qr_code(qr_url)
-                    print(
-                        "\nIf you can't scan the QR code, please visit this URL manually:"
-                    )
-                    print(f"{qr_url}")
-                    print(
-                        "\nWaiting for scan and confirmation on your mobile device..."
-                    )
-                    start_time = time.time()  # Reset timeout
+                    print_message("\n如果您无法扫描二维码，请手动访问以下URL：")
+                    print_message(f"{qr_url}")
+                    print_message("\n请在移动设备上扫描和确认...")
+                    start_time = time.time()  # 重置超时
                 else:
                     raise e
 
-            # Wait before polling again
+            # 轮询前等待
             time.sleep(3)
 
-        raise Exception("Login timeout, please try again")
+        raise Exception("登录超时，请重试")
 
     def login_with_browser(self) -> str:
         """
-        Login by opening Bilibili login page in default browser
+        通过在默认浏览器中打开Bilibili登录页面进行登录
 
         Returns:
-            str: Instructions for user to manually obtain cookies
+            str: 指示用户手动获取cookies的说明
         """
-        # Bilibili main page URL
+        # Bilibili主页URL
         login_url = "https://www.bilibili.com/"
 
-        print("Opening Bilibili login page in your default browser...")
-        print("Please log in to your Bilibili account in the browser that opens.")
-        print("After logging in, follow these steps to get your cookies:")
-        print("\n1. Open browser's developer tools (F12)")
-        print("2. Go to the Network tab")
-        print("3. Refresh the page")
-        print("4. Find any request to bilibili.com")
-        print("5. Right-click and select 'Copy' > 'Copy Request Headers'")
-        print("6. Extract the 'Cookie' value from the headers")
-        print("7. Save the cookie value to a file")
-        print("\nPress Enter to continue and open the browser...")
+        print_message("正在默认浏览器中打开哔哩哔哩登录页面...")
+        print_message("请在打开的浏览器中登录您的哔哩哔哩账户。")
+        print_message("登录后，请按照以下步骤获取您的Cookie：")
+        print_message("\n1. 打开浏览器的开发者工具 (F12)")
+        print_message("2. 转到Network标签页")
+        print_message("3. 刷新页面")
+        print_message("4. 找到任何到bilibili.com的请求")
+        print_message("5. 右键单击并选择'Copy' > 'Copy Request Headers'")
+        print_message("6. 从头部信息中提取'Cookie'值")
+        print_message("7. 将Cookie值保存到文件中")
+        print_message("\n按Enter键继续并打开浏览器...")
         input()
 
-        # Try to open the URL in the default browser
+        # 尝试在默认浏览器中打开URL
         try:
             webbrowser.open(login_url)
         except Exception as e:
             logger.warning("Failed to open browser", error=str(e))
-            print(
-                f"Failed to open browser automatically. Please visit {login_url} manually."
-            )
+            print_message("打开浏览器失败，请手动访问以下URL：")
 
-        # Provide instructions for manual cookie extraction
-        instructions = f"""
-Manual Cookie Extraction Instructions:
+        # 提供手动提取cookie的说明
+        instructions = """
+手动提取Cookie说明:
 =====================================
 
-1. After logging in to Bilibili in your browser, open the developer tools (F12)
-2. Go to the Network tab
-3. Refresh the page (F5)
-4. Find any request to bilibili.com (usually the first one)
-5. Click on the request, then go to the Headers tab
-6. Find the 'Cookie' header in the Request Headers section
-7. Copy the entire cookie value
-8. Save it to a file with the following format:
+1. 在浏览器中登录Bilibili后，打开开发者工具 (F12)
+2. 转到Network标签页
+3. 刷新页面 (F5)
+4. 找到任何到bilibili.com的请求 (通常是第一个)
+5. 点击该请求，然后转到Headers标签页
+6. 在Request Headers部分找到'Cookie'头
+7. 复制整个cookie值
+8. 以以下格式保存到文件中:
 
-Example cookie.txt content:
+示例 cookie.txt 内容:
 ----------------------------
 SESSDATA=your_sessdata_value; bili_jct=your_bili_jct_value; DedeUserID=your_dedeuserid_value
 ----------------------------
 
-Press Enter when you have saved your cookie to continue...
+保存好cookie后按Enter键继续...
 """
-        print(instructions)
+        print_message(instructions)
         input()
 
-        # For browser-based login, we can't automatically extract cookies
-        # Return a placeholder that indicates manual intervention is needed
+        # 对于基于浏览器的登录，我们无法自动提取cookies
+        # 返回一个占位符，表示需要手动干预
         return "MANUAL_LOGIN_REQUIRED"
 
     def save_cookie_to_file(
         self, cookie_str: str, filepath: str = "cookie.txt"
     ) -> None:
         """
-        Save cookie to file
+        保存cookie到文件
 
         Args:
-            cookie_str (str): Cookie string
-            filepath (str): File path to save cookie (default: "cookie.txt")
+            cookie_str (str): Cookie字符串
+            filepath (str): 保存cookie的文件路径 (默认: "cookie.txt")
         """
         try:
             with open(filepath, "w", encoding="utf-8") as f:
@@ -271,4 +264,4 @@ Press Enter when you have saved your cookie to continue...
             logger.info(f"Cookie saved to {filepath}")
         except Exception as e:
             logger.error("Failed to save cookie to file", error=str(e))
-            raise Exception(f"Failed to save cookie to file: {e}")
+            raise Exception(f"保存cookie到文件失败: {e}")

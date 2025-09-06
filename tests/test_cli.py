@@ -1,4 +1,3 @@
-import pytest
 from typer.testing import CliRunner
 
 from bili_downloader.cli.main import app

@@ -1,5 +1,3 @@
-import pytest
-
 from bili_downloader.core.bangumi_downloader import BangumiDownloader
 
 
