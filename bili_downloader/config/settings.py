@@ -16,6 +16,12 @@ class DownloadSettings(BaseModel):
     )
 
 
+class LoginSettings(BaseModel):
+    default_method: str = Field(default="qr", description="默认登录方法 (qr 或 web)")
+    default_output: str = Field(default="cookie.txt", description="默认Cookie输出文件")
+    default_timeout: int = Field(default=180, description="QR码登录超时时间(秒)")
+
+
 class HistorySettings(BaseModel):
     last_url: str = Field(default="", description="上次下载的URL")
     last_directory: str = Field(default="", description="上次下载的目录")
@@ -48,6 +54,7 @@ class Settings(BaseSettings):
     )
 
     download: DownloadSettings = DownloadSettings()
+    login: LoginSettings = LoginSettings()
     history: HistorySettings = HistorySettings()
     network: NetworkSettings = NetworkSettings()
 
@@ -82,6 +89,8 @@ class Settings(BaseSettings):
             settings = cls()
             if "download" in config_data:
                 settings.download = DownloadSettings(**config_data["download"])
+            if "login" in config_data:
+                settings.login = LoginSettings(**config_data["login"])
             if "history" in config_data:
                 settings.history = HistorySettings(**config_data["history"])
             if "network" in config_data:
@@ -105,6 +114,7 @@ class Settings(BaseSettings):
             # 转换为字典并保存
             config_dict = {
                 "download": self.download.model_dump(),
+                "login": self.login.model_dump(),
                 "history": self.history.model_dump(),
                 "network": self.network.model_dump(),
             }

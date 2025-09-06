@@ -56,6 +56,9 @@ ENV DOWNLOAD__DEFAULT_DOWNLOADER=axel \
     DOWNLOAD__DEFAULT_THREADS=64 \
     DOWNLOAD__CLEANUP_AFTER_MERGE=true \
     DOWNLOAD__DEFAULT_DIRECTORY=/app/downloads \
+    LOGIN__DEFAULT_METHOD=qr \
+    LOGIN__DEFAULT_OUTPUT=/app/.cookie.txt \
+    LOGIN__DEFAULT_TIMEOUT=180 \
     NETWORK__USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
 
 VOLUME ["/app/downloads"]

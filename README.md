@@ -177,6 +177,12 @@ bili-downloader login --method web
 
 # 使用浏览器登录并指定输出文件
 bili-downloader login --method web --output ./my_cookie.txt
+
+# 使用环境变量设置默认值
+export LOGIN__DEFAULT_METHOD="web"
+export LOGIN__DEFAULT_OUTPUT="/config/cookie.txt"
+export LOGIN__DEFAULT_TIMEOUT=600
+bili-downloader login
 ```
 
 #### 交互模式（推荐给初学者）
@@ -290,6 +296,11 @@ default_downloader = "axel"
 default_threads = 16
 cleanup_after_merge = false
 
+[login]
+default_method = "qr"
+default_output = "cookie.txt"
+default_timeout = 180
+
 [history]
 last_url = ""
 last_directory = ""
@@ -322,6 +333,15 @@ export DOWNLOAD__DEFAULT_DIRECTORY="/path/to/downloads"
 
 # 设置合并后是否清理
 export DOWNLOAD__CLEANUP_AFTER_MERGE=true
+
+# 设置登录默认方法
+export LOGIN__DEFAULT_METHOD="qr"
+
+# 设置登录默认输出文件
+export LOGIN__DEFAULT_OUTPUT="/path/to/cookie.txt"
+
+# 设置登录默认超时时间
+export LOGIN__DEFAULT_TIMEOUT=180
 ```
 
 环境变量的优先级高于配置文件中的历史记录和默认设置。
