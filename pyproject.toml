@@ -15,6 +15,7 @@ structlog = "^25.4.0"
 pydantic = { version = "^2.11.7", extras = ["dotenv"] }
 pydantic-settings = "^2.10.1"
 toml = "^0.10.2"
+qrcode = { version = "^7.4.2", extras = ["pil"] }
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"

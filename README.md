@@ -116,7 +116,40 @@ docker-compose run --rm bili-downloader download \\
 
 ### 1. 获取您的哔哩哔哩 Cookie
 
-要下载视频，您需要一个有效的哔哩哔哩账户 Cookie。
+要下载视频，您需要一个有效的哔哩哔哩账户 Cookie。您可以通过以下方式获取：
+
+#### 方法一：使用 QR 码登录（推荐）
+
+使用内置的 QR 码登录功能，通过手机 Bilibili App 扫码登录：
+
+```bash
+# 使用 QR 码登录（默认方法）
+bili-downloader login
+
+# 指定输出文件
+bili-downloader login --output ./my_cookie.txt
+
+# 设置超时时间（秒）
+bili-downloader login --timeout 300
+```
+
+程序将生成一个可以直接在终端中显示的 QR 码，您可以用手机 Bilibili App 扫描该 QR 码并确认登录。登录成功后，Cookie 将自动保存到指定文件中。
+
+#### 方法二：使用浏览器登录
+
+使用内置的浏览器登录功能，在默认浏览器中打开 Bilibili 登录页面：
+
+```bash
+# 使用浏览器登录
+bili-downloader login --method web
+
+# 指定输出文件
+bili-downloader login --method web --output ./my_cookie.txt
+```
+
+程序将打开默认浏览器并引导您完成登录流程，然后提供详细的说明帮助您手动提取 Cookie。
+
+#### 方法三：手动获取 Cookie
 
 1. 登录 [哔哩哔哩](https://www.bilibili.com/)。
 2. 打开浏览器的开发者工具 (F12)。
@@ -126,6 +159,25 @@ docker-compose run --rm bili-downloader download \\
 6. 将此 Cookie 值保存到项目根目录下名为 `cookie.txt` 的文件中。
 
 ### 2. 运行下载器
+
+#### 登录获取 Cookie（推荐使用 QR 码登录）
+
+```bash
+# 使用 QR 码登录（默认方法）
+bili-downloader login
+
+# 使用 QR 码登录并指定输出文件
+bili-downloader login --output ./my_cookie.txt
+
+# 使用 QR 码登录并设置超时时间（秒）
+bili-downloader login --timeout 300
+
+# 使用浏览器登录
+bili-downloader login --method web
+
+# 使用浏览器登录并指定输出文件
+bili-downloader login --method web --output ./my_cookie.txt
+```
 
 #### 交互模式（推荐给初学者）
 
@@ -166,6 +218,15 @@ bili-downloader download -v
 创建 `cookie.txt` 文件后，您可以运行：
 
 ```bash
+# 通过 QR 码登录（推荐）
+bili-downloader login
+
+# 通过浏览器登录
+bili-downloader login --method web
+
+# 通过 QR 码登录并指定输出文件
+bili-downloader login --output ./my_cookie.txt
+
 # 交互式下载
 bili-downloader download
 
@@ -175,13 +236,12 @@ bili-downloader download \\
   --directory "./downloads" \\
   --quality 112
 
-# 仅下载标题中包含“战斗”的剧集
+# 仅下载标题中包含"战斗"的剧集
 bili-downloader download \\
   --url "https://www.bilibili.com/bangumi/play/ep836727" \\
   --directory "./downloads" \\
   --quality 112 \\
   --keyword "战斗"
-```
 
 ## 📚 支持的 URL 格式
 
@@ -274,9 +334,9 @@ export DOWNLOAD__CLEANUP_AFTER_MERGE=true
 cp .env.example .env
 ```
 
-## 🛠️ 依赖
+### 🛠️ 依赖
 
-### Python 依赖
+#### Python 依赖
 
 - Python 3.11+
 - requests
@@ -286,8 +346,9 @@ cp .env.example .env
 - pydantic[dotenv]
 - pydantic-settings
 - toml
+- qrcode[pil] (用于生成二维码)
 
-### 外部工具
+#### 外部工具
 
 - **FFmpeg**：合并音视频流所必需。
 - **Aria2**（可选）：使用 `aria2` 下载器进行加速下载。
@@ -309,6 +370,26 @@ poetry run ruff check .
 
 # 运行测试
 poetry run pytest
+```
+
+### CLI 命令
+
+该工具提供以下命令：
+
+```bash
+# 登录命令 - 通过 QR 码登录并保存 Cookie
+bili-downloader login
+
+# 下载命令 - 下载番剧视频
+bili-downloader download
+```
+
+每个命令都有详细的帮助信息，可以通过 `--help` 参数查看：
+
+```bash
+bili-downloader --help
+bili-downloader login --help
+bili-downloader download --help
 ```
 
 ### 项目结构
@@ -333,11 +414,13 @@ bili_downloader_py/
 │  │  ├─ bangumi_downloader.py
 │  │  ├─ downloader_aria2.py
 │  │  ├─ downloader_axel.py
+│  │  ├─ qrcode_login.py
 │  │  └─ vamerger.py
 │  ├─ cli/              # Typer CLI
 │  │  ├─ __init__.py
 │  │  ├─ main.py
-│  │  └─ cmd_download.py
+│  │  ├─ cmd_download.py
+│  │  └─ cmd_login.py
 │  ├─ config/           # 配置管理
 │  │  ├─ __init__.py
 │  │  └─ settings.py

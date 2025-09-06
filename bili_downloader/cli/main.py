@@ -3,11 +3,13 @@
 import typer
 
 from bili_downloader.cli.cmd_download import download
+from bili_downloader.cli.cmd_login import login
 
 app = typer.Typer()
 
 # Register subcommands
 app.command()(download)
+app.command()(login)
 
 
 # Add global options
