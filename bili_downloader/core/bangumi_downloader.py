@@ -88,7 +88,7 @@ class BangumiDownloader:
         """根据 media_id 获取番剧基础信息。"""
         # 加载全局设置以获取User-Agent
         settings = Settings.load_from_file()
-        
+
         if headers is None:
             headers = {}
 
@@ -134,7 +134,7 @@ class BangumiDownloader:
         """根据 season_id 获取番剧信息。"""
         # 加载全局设置以获取User-Agent
         settings = Settings.load_from_file()
-        
+
         if headers is None:
             headers = {}
 
@@ -183,7 +183,7 @@ class BangumiDownloader:
         """根据 ep_id 获取番剧详细信息。"""
         # 加载全局设置以获取User-Agent
         settings = Settings.load_from_file()
-        
+
         if headers is None:
             headers = {}
 
@@ -225,6 +225,8 @@ class BangumiDownloader:
         match = re.search(r"\d+", string)
         return match.group() if match else ""
         """根据 URL 解析并获取番剧详细信息。"""
+
+    def get_detailed_info_from_url(self, url, headers=None):
         if headers is None:
             headers = {}
 
@@ -243,14 +245,14 @@ class BangumiDownloader:
                 raise ValueError("Could not extract media ID from the URL.")
             logger.info("Extracted media_id", media_id=media_id)
             season_id = self.get_bangumi_info(media_id, headers)["season_id"]
-            return self.get_detailed_bangumi_info_from_season_id(season_id, headers)
+            return self.get_bangumi_info_by_season_id(season_id, headers)
         else:
             # 假设是剧集URL
             ep_id = self.get_numbers_in_str(path)
             if not ep_id:
                 raise ValueError("Could not extract episode ID from the URL.")
             logger.info("Extracted ep_id", ep_id=ep_id)
-            return self.get_detailed_bangumi_info_from_ep_id(ep_id, headers)
+            return self.get_bangumi_info_by_ep_id(ep_id, headers)
 
     def get_bangumi_download_info(self, aid, cid, qn=DEFAULT_QN, headers=None):
         """获取特定视频的下载信息。"""
