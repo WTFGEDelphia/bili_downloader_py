@@ -1,9 +1,11 @@
+import hashlib
 import time
 import urllib.parse
 from functools import reduce
-from hashlib import md5
 
 import requests
+
+from bili_downloader.config.settings import Settings
 
 from bili_downloader.utils.logger import logger
 
@@ -85,11 +87,14 @@ class BilibiliSearch:
         Args:
             cookie: Bilibili登录cookie字典
         """
+        # 加载全局设置以获取User-Agent
+        settings = Settings.load_from_file()
+        
         self.cookie = cookie or {}
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "User-Agent": settings.network.user_agent,
                 "Referer": "https://www.bilibili.com/",
             }
         )
@@ -118,7 +123,7 @@ class BilibiliSearch:
         }
 
         query = urllib.parse.urlencode(params)  # 序列化参数
-        wbi_sign = md5((query + mixin_key).encode()).hexdigest()  # 计算w_rid
+        wbi_sign = hashlib.md5((query + mixin_key).encode()).hexdigest()  # 计算w_rid
         params["w_rid"] = wbi_sign
         return params
 
@@ -132,7 +137,27 @@ class BilibiliSearch:
             resp = self.session.get("https://api.bilibili.com/x/web-interface/nav")
             resp.raise_for_status()
             json_content = resp.json()
-
+            
+            # 检查是否有错误信息
+            code = json_content.get("code")
+            if code is not None:
+                # 检查登录状态
+                if code == 0:
+                    # 已登录
+                    img_url: str = json_content["data"]["wbi_img"]["img_url"]
+                    sub_url: str = json_content["data"]["wbi_img"]["sub_url"]
+                    img_key = img_url.rsplit("/", 1)[1].split(".")[0]
+                    sub_key = sub_url.rsplit("/", 1)[1].split(".")[0]
+                    return img_key, sub_key
+                elif code == -101:
+                    # 未登录，但我们仍然可以获取WBI密钥
+                    # 继续执行下面的逻辑
+                    pass
+                else:
+                    # 其他错误
+                    raise Exception(f"获取用户信息失败: {json_content.get('message')}")
+            
+            # 如果code为None或-101，仍然尝试获取WBI密钥
             img_url: str = json_content["data"]["wbi_img"]["img_url"]
             sub_url: str = json_content["data"]["wbi_img"]["sub_url"]
             img_key = img_url.rsplit("/", 1)[1].split(".")[0]

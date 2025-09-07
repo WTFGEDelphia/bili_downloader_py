@@ -160,6 +160,12 @@ def download(
             # Fallback to loading from file if global config is not available
             settings = Settings.load_from_file()
 
+        # 如果命令行指定了verbose，则重新配置logger
+        # 但要保留全局设置中的文件日志配置
+        if verbose:
+            from bili_downloader.utils.logger import configure_logger
+            configure_logger(verbose, settings.log)
+
         # Cookie
         cookie_dict = get_cookie_from_file()
         # 如果cookie_dict为空，提示用户输入

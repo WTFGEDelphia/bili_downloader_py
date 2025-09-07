@@ -1,8 +1,9 @@
 import os
 
 import typer
+from rich.prompt import Confirm, Prompt
 
-from bili_downloader.cli.global_config import env_bool
+from bili_downloader.cli.global_config import get_cookie_from_file
 from bili_downloader.config.settings import Settings
 from bili_downloader.utils.logger import logger
 from bili_downloader.utils.print_utils import print_message
@@ -33,20 +34,46 @@ def login(
     登录后，Cookie将保存到文件中，供下载命令使用。
     """
     try:
-        # 从文件加载设置或创建默认设置
-        settings = Settings.load_from_file()
+        # Load settings from global config
+        from bili_downloader.cli.global_config import _global_cli_args
+
+        settings = _global_cli_args.get("settings")
+        if not settings:
+            # Fallback to loading from file if global config is not available
+            settings = Settings.load_from_file()
+
+        # 如果命令行指定了verbose，则重新配置logger
+        if verbose:
+            from bili_downloader.utils.logger import configure_logger
+            configure_logger(verbose, settings.log)
+
+        # Cookie
+        cookie_dict = get_cookie_from_file()
+
+        if cookie_dict:
+            # 校验cookie是否过期
+            from bili_downloader.cli.global_config import is_cookie_valid
+            if is_cookie_valid(cookie_dict):
+                print_message(f"\nCookie已读取，且未过期")
+                print_message("您现在可以直接使用下载命令了。")
+                return
+            else:
+                print_message(f"\nCookie已过期，需要重新登录")
 
         # 确定方法，优先级：命令行 > 环境变量 > 配置文件默认值 > "qr"
-        # 方法默认值优先级：命令行 > 环境变量 > 配置文件默认值 > "qr"
-        default_method = os.environ.get("LOGIN__DEFAULT_METHOD", "qr")
+        default_method = os.environ.get(
+            "LOGIN__DEFAULT_METHOD", settings.login.default_method
+        )
         login_method = method if method else default_method
 
-        # 输出文件默认值优先级：命令行 > 环境变量 > 配置文件历史记录 > "cookie.txt"
-        default_output = os.environ.get("LOGIN__DEFAULT_OUTPUT", "cookie.txt")
-        output_file = output if output else default_output
+        # 输出文件默认值优先级：命令行 > 环境变量 > 配置文件历史记录 > ""（用户缓存目录）
+        env_login_default_output = os.environ.get('LOGIN__DEFAULT_OUTPUT')
+        default_output = settings.login.default_output
+        config_output_file = env_login_default_output if env_login_default_output else default_output
+        output_file = output if output else config_output_file
 
         # 超时默认值优先级：命令行 > 环境变量 > 配置文件默认值 > 180
-        default_timeout = int(os.environ.get("LOGIN__DEFAULT_TIMEOUT", "180"))
+        default_timeout = int(os.environ.get("LOGIN__DEFAULT_TIMEOUT", settings.login.default_timeout))
         timeout_value = timeout if timeout > 0 else default_timeout
 
         logger.info(

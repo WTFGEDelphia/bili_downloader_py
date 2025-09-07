@@ -3,8 +3,10 @@
 """
 
 import os
+from pathlib import Path
 from typing import Any
 
+import requests
 from rich.console import Console
 
 from bili_downloader.config.settings import Settings
@@ -55,11 +57,7 @@ def get_cookie_from_file() -> dict[str, str]:
     # 定义多个可能的cookie文件路径
     possible_paths = [
         # Docker环境中的挂载路径
-        "/app/cookie.txt",
-        "/config/cookie.txt",
-        # 项目根目录（相对于当前工作目录）
-        "cookie.txt",
-        "./cookie.txt",
+        os.path.join(Path.home(), ".config", "bili-downloader", "cookie.txt"),
         # 原始路径
         os.path.join(os.getcwd(), "cookie.txt"),
     ]
@@ -89,6 +87,47 @@ def get_cookie_from_file() -> dict[str, str]:
             console.print(f"  - {path}")
 
     return cookie
+
+
+def is_cookie_valid(cookie: dict[str, str]) -> bool:
+    """
+    验证B站Cookie是否有效
+
+    Args:
+        cookie: Cookie字典
+
+    Returns:
+        Cookie是否有效
+    """
+    try:
+        # 加载全局设置以获取User-Agent
+        settings = Settings.load_from_file()
+        
+        # 将cookie字典转换为cookie字符串
+        cookie_str = "; ".join([f"{k}={v}" for k, v in cookie.items()])
+        
+        # 创建会话并设置cookie
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": settings.network.user_agent,
+            "Referer": "https://www.bilibili.com/"
+        })
+        session.cookies.update(cookie)
+        
+        # 请求用户导航信息API
+        resp = session.get("https://api.bilibili.com/x/web-interface/nav")
+        resp.raise_for_status()
+        json_content = resp.json()
+        
+        # 检查返回码
+        # code为0表示已登录，-101表示未登录
+        if json_content.get("code") == 0:
+            return True
+        else:
+            return False
+    except Exception as e:
+        logger.error("验证Cookie时出错", error=str(e))
+        return False
 
 
 def env_bool(key: str, default: bool = False) -> bool:

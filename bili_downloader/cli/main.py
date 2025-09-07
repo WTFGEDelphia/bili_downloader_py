@@ -33,6 +33,8 @@ def main(
     global_config = setup_global_config(verbose, log_format)
     # 将全局配置存储在全局变量中，供子命令使用
     _global_cli_args["settings"] = global_config["settings"]
+    # 将verbose参数也存储在全局变量中，供子命令使用
+    _global_cli_args["verbose"] = verbose
 
     # 如果启用了文件日志，则更新设置并重新配置logger
     if log_to_file:

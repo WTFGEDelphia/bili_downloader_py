@@ -4,6 +4,7 @@ import webbrowser
 
 import requests
 
+from bili_downloader.config.settings import Settings
 from bili_downloader.utils.logger import logger
 from bili_downloader.utils.print_utils import print_message
 
@@ -12,10 +13,13 @@ class QRCodeLogin:
     """Bilibili 二维码登录类"""
 
     def __init__(self):
+        # 加载全局设置以获取User-Agent
+        settings = Settings.load_from_file()
+        
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "User-Agent": settings.network.user_agent,
                 "Referer": "https://www.bilibili.com/",
             }
         )
@@ -259,6 +263,11 @@ SESSDATA=your_sessdata_value; bili_jct=your_bili_jct_value; DedeUserID=your_dede
             filepath (str): 保存cookie的文件路径 (默认: "cookie.txt")
         """
         try:
+            print_message(f"begin to save cookie to {filepath}")
+            # 确保目录存在
+            import os
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(cookie_str)
             logger.info(f"Cookie saved to {filepath}")

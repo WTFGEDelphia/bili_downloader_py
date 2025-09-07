@@ -18,9 +18,11 @@ from bili_downloader.utils.logger import logger
 app = typer.Typer()
 console = Console()
 
-
-# 移除了_get_cookie函数，使用全局配置模块提供的get_cookie_from_file函数
-
+def get_media_score(media_score: dict) -> float:
+    """获取媒体评分"""
+    if not media_score or isinstance(media_score, dict):
+        return float(media_score.get("score", 0))
+    return 0.0
 
 def _display_search_results(results: dict, search_type: str = "all"):
     """
@@ -41,7 +43,7 @@ def _display_all_search_results(results: dict):
 
     if not result_list:
         console.print("[yellow]未找到搜索结果。[/yellow]")
-        logger.info("未找到搜索结果。")
+        logger.debug("未找到搜索结果。")
         return
 
     # 显示不同类型的搜索结果
@@ -82,7 +84,6 @@ def _display_all_search_results(results: dict):
                     play_str = str(play)
 
                 table.add_row(title, author, play_str, duration)
-
         elif result_type == "bili_user":
             table.add_column("Username", style="cyan")
             table.add_column("Sign", style="green")
@@ -108,19 +109,63 @@ def _display_all_search_results(results: dict):
                     str(videos),
                 )
 
-        else:
-            # 其他类型显示基本信息
-            table.add_column("Info", style="cyan")
-            for item in data_list[:5]:  # 只显示前5个结果
-                table.add_row(json.dumps(item, ensure_ascii=False, indent=2))
+        elif result_type == "media_bangumi":
+            table.add_column("番名", style="cyan", max_width=40, overflow="fold")
+            table.add_column("分类", style="green", max_width=9, overflow="fold")
+            table.add_column("配音/演员表", style="yellow", max_width=16, overflow="fold")
+            table.add_column("评分", style="bold yellow", justify="right")
+            table.add_column("更新进度", style="blue", justify="center")
+            table.add_column("封面", style="blue", justify="center", max_width=12, overflow="fold")
+            table.add_column("pgc_season_id", style="dim", justify="center", width=15)
+            table.add_column("media_id", style="dim", justify="center", width=10)
+            table.add_column("season_id", style="dim", justify="center", width=10)
+
+            for item in data_list[:10]:
+                title = (
+                    item.get("title", "")
+                    .replace('<em class="keyword">', "")
+                    .replace("</em>", "")
+                )
+                styles = (item.get("styles", []))
+                cv = item.get("cv", "")
+                media_score = item.get("media_score", {})
+                score = get_media_score(media_score)
+                index_show = item.get("index_show", "")
+                cover = item.get("cover", "")
+                pgc_season_id = item.get("pgc_season_id", 0)
+                media_id = item.get("media_id", 0)
+                season_id = item.get("season_id", 0)
+
+                # 为 score 添加条件样式
+                score_str = str(score)
+                if score and float(score) >= 8.0:
+                    score_str = f"[bold green]{score_str}[/]"
+                elif score and float(score) >= 6.0:
+                    score_str = f"[bold yellow]{score_str}[/]"
+                elif score:
+                    score_str = f"[bold red]{score_str}[/]"
+
+                table.add_row(
+                    title,
+                    styles,
+                    cv,
+                    score_str,  # 使用格式化后的 score
+                    index_show,
+                    cover,
+                    str(pgc_season_id),
+                    str(media_id),
+                    str(season_id),
+                )
 
         console.print(table)
         console.print("")
-
-        # 记录表格数据到日志
-        logger.info(f"显示 {result_type.upper()} 搜索结果:")
-        for item in data_list[:10]:  # 只记录前10个结果
-            logger.info(f"  {item}")
+        # else:
+        #     # 其他类型显示基本信息
+        #     table.add_column("Info", style="cyan")
+        #     for item in data_list[:1]:  # 只显示前5个结果
+        #         table.add_row(json.dumps(item, ensure_ascii=False, indent=2))
+        # console.print(table)
+        # console.print("")
 
 
 def _display_type_search_results(results: dict, search_type: str):
@@ -132,7 +177,7 @@ def _display_type_search_results(results: dict, search_type: str):
 
     if not result_list:
         console.print("[yellow]未找到搜索结果。[/yellow]")
-        logger.info("未找到搜索结果。")
+        logger.debug("未找到搜索结果。")
         return
 
     table = Table(
@@ -149,7 +194,7 @@ def _display_type_search_results(results: dict, search_type: str):
         table.add_column("Duration", style="blue")
         table.add_column("URL", style="dim")
 
-        for item in result_list[:15]:  # 只显示前15个结果
+        for item in result_list[:10]:  # 只显示前10个结果
             title = (
                 item.get("title", "")
                 .replace('<em class="keyword">', "")
@@ -170,27 +215,52 @@ def _display_type_search_results(results: dict, search_type: str):
             table.add_row(title, author, play_str, duration, url)
 
     elif search_type == "media_bangumi":
-        table.add_column("Title", style="cyan")
-        table.add_column("Styles", style="green")
-        table.add_column("Score", style="yellow")
-        table.add_column("URL", style="dim")
+        table.add_column("番名", style="cyan", max_width=40, overflow="fold")
+        table.add_column("分类", style="green", max_width=9, overflow="fold")
+        table.add_column("配音/演员表", style="yellow", max_width=16, overflow="fold")
+        table.add_column("评分", style="bold yellow", justify="right")
+        table.add_column("更新进度", style="blue", justify="center")
+        table.add_column("封面", style="blue", justify="center", max_width=12, overflow="fold")
+        table.add_column("pgc_season_id", style="dim", justify="center", width=15)
+        table.add_column("media_id", style="dim", justify="center", width=10)
+        table.add_column("season_id", style="dim", justify="center", width=10)
 
-        for item in result_list[:15]:  # 只显示前15个结果
+        for item in result_list[:10]:
             title = (
                 item.get("title", "")
                 .replace('<em class="keyword">', "")
                 .replace("</em>", "")
             )
-            styles = ", ".join(item.get("styles", []))
-            score = item.get("score", 0)
-            media_id = item.get("media_id", "")
-            url = (
-                f"https://www.bilibili.com/bangumi/media/md{media_id}"
-                if media_id
-                else ""
-            )
+            styles = (item.get("styles", []))
+            cv = item.get("cv", "")
+            media_score = item.get("media_score", {})
+            score = get_media_score(media_score)
+            index_show = item.get("index_show", "")
+            cover = item.get("cover", "")
+            pgc_season_id = item.get("pgc_season_id", 0)
+            media_id = item.get("media_id", 0)
+            season_id = item.get("season_id", 0)
 
-            table.add_row(title, styles, str(score), url)
+            # 为 score 添加条件样式
+            score_str = str(score)
+            if score and float(score) >= 8.0:
+                score_str = f"[bold green]{score_str}[/]"
+            elif score and float(score) >= 6.0:
+                score_str = f"[bold yellow]{score_str}[/]"
+            elif score:
+                score_str = f"[bold red]{score_str}[/]"
+
+            table.add_row(
+                title,
+                styles,
+                cv,
+                score_str,  # 使用格式化后的 score
+                index_show,
+                cover,
+                str(pgc_season_id),
+                str(media_id),
+                str(season_id),
+            )
 
     elif search_type == "bili_user":
         table.add_column("Username", style="cyan")
@@ -199,7 +269,7 @@ def _display_type_search_results(results: dict, search_type: str):
         table.add_column("Videos", style="blue")
         table.add_column("URL", style="dim")
 
-        for item in result_list[:15]:  # 只显示前15个结果
+        for item in result_list[:10]:
             username = item.get("uname", "")
             sign = item.get("usign", "")
             fans = item.get("fans", 0)
@@ -220,18 +290,20 @@ def _display_type_search_results(results: dict, search_type: str):
                 str(videos),
                 url,
             )
-    else:
-        # 其他类型显示基本信息
-        table.add_column("Info", style="cyan")
-        for item in result_list[:10]:  # 只显示前10个结果
-            table.add_row(json.dumps(item, ensure_ascii=False, indent=2))
+    # else:
+    #     # 其他类型显示基本信息
+    #     table.add_column("Info", style="cyan")
+    #     for item in result_list[:10]:  # 只显示前10个结果
+    #         table.add_row(json.dumps(item, ensure_ascii=False, indent=2))
 
     console.print(table)
 
     # 记录表格数据到日志
-    logger.info(f"显示 {search_type.upper()} 搜索结果:")
-    for item in result_list[:15]:  # 只记录前15个结果
-        logger.info(f"  {item}")
+    logger.debug(f"显示 {search_type.upper()} 搜索结果:")
+    # 只记录前3个结果的简要信息，避免日志文件过大
+    for item in result_list[:3]:
+        title = item.get("title", "")
+        logger.debug(f"  标题: {title}")
 
 
 @app.command()
@@ -255,8 +327,13 @@ def search(
     - user: 用户搜索
     """
     try:
-        # 加载设置
-        settings = Settings.load_from_file()
+        # Load settings from global config
+        from bili_downloader.cli.global_config import _global_cli_args
+
+        settings = _global_cli_args.get("settings")
+        if not settings:
+            # Fallback to loading from file if global config is not available
+            settings = Settings.load_from_file()
 
         # 获取Cookie
         cookie_dict = get_cookie_from_file()
@@ -291,6 +368,7 @@ def search(
         elif search_type == "video":
             results = searcher.search_video(keyword, order=order, page=page)
         elif search_type == "bangumi":
+            search_type = "media_bangumi"
             results = searcher.search_bangumi(keyword, page=page)
         elif search_type == "user":
             results = searcher.search_user(keyword, page=page)

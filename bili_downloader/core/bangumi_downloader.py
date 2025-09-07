@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from bili_downloader.config.settings import Settings
 from bili_downloader.core.downloader_aria2 import DownloaderAria2
 from bili_downloader.core.downloader_axel import DownloaderAxel
 from bili_downloader.core.vamerger import VAMerger
@@ -85,6 +86,9 @@ class BangumiDownloader:
 
     def get_bangumi_info(self, media_id, headers=None):
         """根据 media_id 获取番剧基础信息。"""
+        # 加载全局设置以获取User-Agent
+        settings = Settings.load_from_file()
+        
         if headers is None:
             headers = {}
 
@@ -92,7 +96,7 @@ class BangumiDownloader:
         headers = headers.copy()
         headers.setdefault(
             "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            settings.network.user_agent,
         )
         headers.setdefault("Referer", "https://www.bilibili.com")
 
@@ -126,8 +130,11 @@ class BangumiDownloader:
             logger.error("媒体ID的响应结构异常", media_id=media_id)
             raise DownloadError(f"媒体ID的响应结构异常 {media_id}")
 
-    def get_detailed_bangumi_info_from_season_id(self, season_id, headers=None):
-        """根据 season_id 获取番剧详细信息。"""
+    def get_bangumi_info_by_season_id(self, season_id, headers=None):
+        """根据 season_id 获取番剧信息。"""
+        # 加载全局设置以获取User-Agent
+        settings = Settings.load_from_file()
+        
         if headers is None:
             headers = {}
 
@@ -135,7 +142,7 @@ class BangumiDownloader:
         headers = headers.copy()
         headers.setdefault(
             "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            settings.network.user_agent,
         )
         headers.setdefault("Referer", "https://www.bilibili.com")
 
@@ -151,7 +158,6 @@ class BangumiDownloader:
                 params=params,
                 headers=headers,
                 cookies=cookie_dict,
-                timeout=10,
             )
             response.raise_for_status()
             result = response.json()
@@ -173,8 +179,11 @@ class BangumiDownloader:
             logger.error("season_id的响应结构异常", season_id=season_id)
             raise DownloadError(f"season_id的响应结构异常 {season_id}")
 
-    def get_detailed_bangumi_info_from_ep_id(self, ep_id, headers=None):
+    def get_bangumi_info_by_ep_id(self, ep_id, headers=None):
         """根据 ep_id 获取番剧详细信息。"""
+        # 加载全局设置以获取User-Agent
+        settings = Settings.load_from_file()
+        
         if headers is None:
             headers = {}
 
@@ -182,7 +191,7 @@ class BangumiDownloader:
         headers = headers.copy()
         headers.setdefault(
             "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            settings.network.user_agent,
         )
         headers.setdefault("Referer", "https://www.bilibili.com")
 
@@ -208,18 +217,13 @@ class BangumiDownloader:
             raise DownloadError(f"获取番剧详细信息时出错 ep_id {ep_id}: {e}") from e
         except json.JSONDecodeError:
             logger.error(f"解析剧集ID的JSON响应时出错，剧集ID: {ep_id}", error=str(e))
-            raise DownloadError(f"解析JSON响应时出错 ep_id {ep_id}")
-        except KeyError:
-            logger.error(f"剧集ID的响应结构异常，剧集ID: {ep_id}")
-            raise DownloadError(f"剧集ID的响应结构异常 {ep_id}")
+            raise DownloadError(f"解析剧集ID的JSON响应时出错，剧集ID: {ep_id}") from e
 
     def get_numbers_in_str(self, string: str) -> str:
         """从字符串中提取数字。"""
         # 使用正则表达式更健壮和高效
         match = re.search(r"\d+", string)
         return match.group() if match else ""
-
-    def get_detailed_info_from_url(self, url, headers=None):
         """根据 URL 解析并获取番剧详细信息。"""
         if headers is None:
             headers = {}

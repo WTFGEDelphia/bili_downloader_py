@@ -90,7 +90,8 @@ def configure_logger(verbose: bool = False, log_settings=None):
             backupCount=log_settings.backup_count,
             encoding="utf-8",
         )
-        file_handler.setLevel(getattr(logging, log_settings.log_level.upper()))
+        # 文件处理器的日志级别应该与控制台保持一致
+        file_handler.setLevel(level)
 
         # 文件处理器始终使用 '%(message)s' 格式化器，以确保与 structlog 处理器兼容
         formatter = logging.Formatter("%(message)s")

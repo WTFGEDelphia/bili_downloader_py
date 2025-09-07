@@ -39,7 +39,7 @@ class DownloadSettings(BaseModel):
 
 class LoginSettings(BaseModel):
     default_method: str = Field(default="qr", description="默认登录方法 (qr 或 web)")
-    default_output: str = Field(default="cookie.txt", description="默认Cookie输出文件")
+    default_output: str = Field(default="", description="默认Cookie输出文件, 用户缓存目录")
     default_timeout: int = Field(default=180, description="QR码登录超时时间(秒)")
 
 
@@ -50,7 +50,7 @@ class HistorySettings(BaseModel):
 
 class NetworkSettings(BaseModel):
     user_agent: str = Field(
-        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36",
         description="User-Agent 字符串",
     )
 
@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     history: HistorySettings = HistorySettings()
     network: NetworkSettings = NetworkSettings()
 
+    def model_post_init(self, __context) -> None:
+        self.login.default_output = str(self.get_env_cookie_file_path())
+
     @classmethod
     def get_config_dir(cls) -> Path:
         """获取配置文件目录"""
@@ -96,19 +99,10 @@ class Settings(BaseSettings):
         return cls.get_config_dir() / "config.toml"
 
     @classmethod
-    def get_default_config_dir(cls) -> Path:
-        """获取默认配置文件目录"""
-        # Windows: C:\Users\{username}\AppData\Roaming\bili-downloader
-        # macOS: ~/Library/Application Support/bili-downloader
-        # Linux: ~/.config/bili-downloader
-        config_dir = Path.home() / ".config" / "bili-downloader"
-        config_dir.mkdir(parents=True, exist_ok=True)
-        return config_dir
-
-    @classmethod
-    def get_default_config_file(cls) -> Path:
-        """获取默认配置文件路径"""
-        return cls.get_default_config_dir() / "config.toml"
+    def get_cookie_file(cls) -> Path:
+        """获取配置文件路径"""
+        cookie_path = cls.get_config_dir() / "cookie.txt"
+        return cookie_path
 
     @classmethod
     def get_env_config_file_path(cls) -> Path:
@@ -124,7 +118,23 @@ class Settings(BaseSettings):
             return Path(config_file_path)
         else:
             # 如果未指定，则使用默认配置文件路径
-            return cls.get_default_config_file()
+            return cls.get_config_file()
+
+    @classmethod
+    def get_env_cookie_file_path(cls) -> Path:
+        """
+        获取环境变量中指定的Cookie文件路径
+
+        Returns:
+            Path: 配置文件路径
+        """
+        # 获取 LOGIN__DEFAULT_OUTPUT 环境变量指定的配置文件路径
+        cookie_file_path = os.environ.get("LOGIN__DEFAULT_OUTPUT")
+        if cookie_file_path:
+            return Path(cookie_file_path)
+        else:
+            # 如果未指定，则使用默认配置文件路径
+            return cls.get_cookie_file()
 
     @classmethod
     def load_from_file(cls) -> "Settings":
@@ -181,6 +191,12 @@ class Settings(BaseSettings):
                 settings.history = HistorySettings(**config_data["history"])
             if "network" in config_data:
                 settings.network = NetworkSettings(**config_data["network"])
+
+            # 在model_post_init中会设置login.default_output的正确值
+            settings.model_post_init(None)
+
+            env_cookie_file_path = settings.login.default_output
+            print_info(f"cookie 默认的配置文件路径: {env_cookie_file_path}")
 
             print_info(f"已从配置文件加载设置: {config_file_path}")
             return settings
