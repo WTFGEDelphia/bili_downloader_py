@@ -23,7 +23,7 @@ def main(
         False, "--log-to-file", "-l", help="将日志输出到文件"
     ),
     log_format: str = typer.Option(
-        "json", "--log-format", "-f", help="日志格式 (json, console, keyvalue, simple)"
+        "simple", "--log-format", "-f", help="日志格式 (json, console, keyvalue, simple)"
     ),
 ):
     """
